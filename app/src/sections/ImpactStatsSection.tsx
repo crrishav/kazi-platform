@@ -8,28 +8,28 @@ gsap.registerPlugin(ScrollTrigger);
 
 const stats = [
   {
-    value: "4.8",
-    suffix: "x",
-    label: "Fair Wage Multiplier",
-    desc: "Kathmandu craftspeople earn well above standard market minimums, complete with full healthcare coverage.",
+    value: "10",
+    suffix: "",
+    label: "Dedicated Tailors",
+    desc: "A small, focused team of master tailors in our Kathmandu partner studio hand-crafting every custom run.",
   },
   {
     value: "100",
     suffix: "%",
-    label: "Solar-Powered Spinning",
-    desc: "All knits are woven and spun in local solar-powered partner mills, minimizing our carbon offset footprint.",
+    label: "GOTS Organic Cotton",
+    desc: "Fully certified organic cotton jersey, ensuring zero toxic chemicals or synthetic blends touch the earth.",
   },
   {
-    value: "24",
-    suffix: "+",
-    label: "Artisans Supported",
-    desc: "Direct livelihood support for female-led weaving cooperatives in Kathmandu and rural Nepalese highlands.",
+    value: "2.5",
+    suffix: "x",
+    label: "Living Wage Index",
+    desc: "We pay our tailors well above the average living wage, directly supporting health coverage and local education.",
   },
   {
     value: "DFQF",
     suffix: "",
-    label: "Duty-Free Shipping",
-    desc: "Fully compliant with Duty-Free Quota-Free (DFQF) guidelines for tariff-free imports to UK and EU brand hubs.",
+    label: "Duty-Free Export",
+    desc: "Fully compliant with Nepal export regulations for tariff-free customs clearance straight to your brand hub.",
   },
 ];
 
