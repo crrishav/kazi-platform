@@ -14,7 +14,6 @@ import ProductGridSection from "@/sections/ProductGridSection";
 import PressStripSection from "@/sections/PressStripSection";
 import B2BWorkflowSection from "@/sections/B2BWorkflowSection";
 import ImpactStatsSection from "@/sections/ImpactStatsSection";
-import SwatchBookSection from "@/sections/SwatchBookSection";
 
 export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -40,7 +39,6 @@ export default function Home() {
           <B2BWorkflowSection />
           <ImpactStatsSection />
           <PressStripSection />
-          <SwatchBookSection />
         </main>
 
         <Footer />
