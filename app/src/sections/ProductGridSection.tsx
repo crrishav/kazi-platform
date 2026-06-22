@@ -13,7 +13,7 @@ const products = [
     name: "KAZI ORGANIC TEE",
     slug: "kazi-organic-tee",
     price: "From US$ 8.50 / piece",
-    image: "/images/product-wrap.jpg",
+    image: "/images/organic-tee.jpg",
     garment: "t-shirt",
     colors: [
       { name: "Forest Green", hex: "#1B3D2A" },
@@ -27,7 +27,7 @@ const products = [
     name: "DROPSHOULDER TEE",
     slug: "dropshoulder-tee",
     price: "From US$ 12.00 / piece",
-    image: "/images/product-kebaya-black.jpg",
+    image: "/images/dropshoulder-tee.jpg",
     garment: "t-shirt",
     colors: [
       { name: "Deep Green", hex: "#1B3D2A" },
@@ -41,7 +41,7 @@ const products = [
     name: "PREMIUM HOODIE",
     slug: "premium-hoodie",
     price: "From US$ 18.00 / piece",
-    image: "/images/product-kebaya-cream.jpg",
+    image: "/images/premium-hoodie.jpg",
     garment: "hoodie",
     colors: undefined,
     badge: "BESTSELLER",
