@@ -158,45 +158,39 @@ export default function PricingQuoteSection() {
 
   if (success) {
     return (
-      <div className="border border-[#1E1E24] bg-[#111114] p-16 text-center">
-        <div className="w-14 h-14 border border-[#FF0000]/40 flex items-center justify-center mx-auto mb-6">
-          <Check className="w-7 h-7 text-[#FF0000]" strokeWidth={2.5} />
+      <div className="border border-rule bg-white p-16 text-center">
+        <div className="w-14 h-14 border border-accent-warm/40 flex items-center justify-center mx-auto mb-6">
+          <Check className="w-7 h-7 text-accent-warm" strokeWidth={2.5} />
         </div>
-        <div
-          className="text-[11px] text-[#FF0000] tracking-[0.2em] uppercase mb-3"
-          style={{ fontFamily: "'SF Mono','Fira Code','Consolas',monospace" }}
-        >
-          QUOTE.SUBMITTED — REF PENDING
-        </div>
-        <h3 className="text-2xl font-bold text-white mb-2">Quote submitted</h3>
-        <p className="text-gray-500">We&apos;ll review your details and respond within 24 hours.</p>
+        <p className="font-inter text-[11px] text-text-muted tracking-widest uppercase mb-3">
+          Quote Submitted
+        </p>
+        <h3 className="font-cinzel text-2xl text-espresso mb-2">Quote submitted</h3>
+        <p className="font-inter text-sm text-text-muted">We&apos;ll review your details and respond within 24 hours.</p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 border border-[#1E1E24] overflow-hidden">
+    <div className="grid grid-cols-1 lg:grid-cols-2 border border-rule overflow-hidden">
 
       {/* LEFT — Calculator */}
-      <div className="bg-[#0D0D10] border-r border-[#1E1E24]">
+      <div className="bg-cream/40 border-r border-rule">
 
         {/* Product type */}
-        <div className="p-6 border-b border-[#1E1E24]">
-          <label
-            className="block text-[11px] font-semibold uppercase tracking-widest text-gray-600 mb-3"
-            style={{ fontFamily: "'SF Mono','Fira Code','Consolas',monospace" }}
-          >
-            PRODUCT TYPE
+        <div className="p-6 border-b border-rule">
+          <label className="block font-inter text-[11px] font-medium uppercase tracking-widest text-text-muted mb-3">
+            Product Type
           </label>
           <div className="grid grid-cols-2 gap-2">
             {(['tshirt', 'hoodie'] as ProductType[]).map(type => (
               <button
                 key={type}
                 onClick={() => setProductType(type)}
-                className={`py-3 px-4 border text-sm font-medium tracking-wider uppercase transition-all duration-200 ${
+                className={`py-3 px-4 border font-inter text-sm font-medium tracking-wider uppercase transition-all duration-200 ${
                   productType === type
-                    ? 'border-[#FF0000] bg-[#FF0000]/10 text-[#FF0000]'
-                    : 'border-[#1E1E24] text-gray-500 hover:border-gray-600 hover:text-gray-300'
+                    ? 'border-espresso bg-espresso text-cream'
+                    : 'border-rule text-text-muted hover:border-espresso/40 hover:text-espresso'
                 }`}
               >
                 {type === 'tshirt' ? 'T-Shirts' : 'Hoodies'}
@@ -206,29 +200,23 @@ export default function PricingQuoteSection() {
         </div>
 
         {/* Quantity */}
-        <div className="p-6 border-b border-[#1E1E24]">
+        <div className="p-6 border-b border-rule">
           <div className="flex justify-between items-baseline mb-4">
-            <label
-              className="text-[11px] font-semibold uppercase tracking-widest text-gray-600"
-              style={{ fontFamily: "'SF Mono','Fira Code','Consolas',monospace" }}
-            >
-              QUANTITY
+            <label className="font-inter text-[11px] font-medium uppercase tracking-widest text-text-muted">
+              Quantity
             </label>
-            <span className="text-2xl font-bold text-white stat-readout">
+            <span className="font-inter text-2xl font-semibold text-espresso">
               {quantity.toLocaleString()}
-              <span className="text-base font-normal text-gray-500 ml-1">units</span>
+              <span className="text-base font-normal text-text-muted ml-1">units</span>
             </span>
           </div>
           <input
             type="range" min="50" max="2000" step="10"
             value={quantity}
             onChange={e => setQuantity(parseInt(e.target.value))}
-            className="w-full h-px bg-[#1E1E24] appearance-none cursor-pointer accent-[#FF0000]"
+            className="w-full h-px bg-rule appearance-none cursor-pointer accent-accent-warm"
           />
-          <div
-            className="flex justify-between text-[10px] text-gray-600 mt-2"
-            style={{ fontFamily: "'SF Mono','Fira Code','Consolas',monospace" }}
-          >
+          <div className="flex justify-between font-inter text-[10px] text-text-light mt-2">
             <span>50</span><span>500</span><span>1000</span><span>2000</span>
           </div>
           <div className="flex mt-3 gap-1">
@@ -237,7 +225,7 @@ export default function PricingQuoteSection() {
                 key={idx}
                 className={`flex-1 h-px transition-colors duration-200 ${
                   quantity >= tier.minQty && (tier.maxQty === null || quantity <= tier.maxQty)
-                    ? 'bg-[#FF0000]' : 'bg-[#1E1E24]'
+                    ? 'bg-accent-warm' : 'bg-rule'
                 }`}
               />
             ))}
@@ -245,90 +233,83 @@ export default function PricingQuoteSection() {
         </div>
 
         {/* Add-ons */}
-        <div className="p-6 border-b border-[#1E1E24]">
-          <label
-            className="block text-[11px] font-semibold uppercase tracking-widest text-gray-600 mb-3"
-            style={{ fontFamily: "'SF Mono','Fira Code','Consolas',monospace" }}
-          >
-            DECORATION ADD-ONS
+        <div className="p-6 border-b border-rule">
+          <label className="block font-inter text-[11px] font-medium uppercase tracking-widest text-text-muted mb-3">
+            Decoration Add-Ons
           </label>
           <div className="space-y-2">
-            <label className="flex items-center gap-3 p-3 border border-[#1E1E24] hover:border-[#FF0000]/30 cursor-pointer transition-colors duration-200">
+            <label className="flex items-center gap-3 p-3 border border-rule hover:border-accent-warm/40 cursor-pointer transition-colors duration-200">
               <input type="checkbox" checked={addOns.embroidery}
                 onChange={e => setAddOns({ ...addOns, embroidery: e.target.checked })}
-                className="w-4 h-4 accent-[#FF0000]" />
-              <div className="flex-1 text-sm">
-                <div className="font-medium text-gray-300">Embroidery</div>
-                <div className="text-gray-600 text-xs stat-readout">+£{addOns.embroiderySize === 'small' ? '2.50' : '4.00'}/unit</div>
+                className="w-4 h-4 accent-accent-warm" />
+              <div className="flex-1 font-inter text-sm">
+                <div className="font-medium text-text-primary">Embroidery</div>
+                <div className="text-text-muted text-xs">+£{addOns.embroiderySize === 'small' ? '2.50' : '4.00'}/unit</div>
               </div>
               {addOns.embroidery && (
                 <select value={addOns.embroiderySize}
                   onChange={e => setAddOns({ ...addOns, embroiderySize: e.target.value })}
-                  className="text-sm bg-[#111114] border border-[#1E1E24] text-gray-300 px-2 py-1">
+                  className="font-inter text-sm bg-white border border-rule text-text-primary px-2 py-1">
                   <option value="small">Small</option>
                   <option value="large">Large</option>
                 </select>
               )}
             </label>
-            <label className="flex items-center gap-3 p-3 border border-[#1E1E24] hover:border-[#FF0000]/30 cursor-pointer transition-colors duration-200">
+            <label className="flex items-center gap-3 p-3 border border-rule hover:border-accent-warm/40 cursor-pointer transition-colors duration-200">
               <input type="checkbox" checked={addOns.screenPrint}
                 onChange={e => setAddOns({ ...addOns, screenPrint: e.target.checked })}
-                className="w-4 h-4 accent-[#FF0000]" />
-              <div className="flex-1 text-sm">
-                <div className="font-medium text-gray-300">Screen Print</div>
-                <div className="text-gray-600 text-xs stat-readout">+£1.50/colour/unit</div>
+                className="w-4 h-4 accent-accent-warm" />
+              <div className="flex-1 font-inter text-sm">
+                <div className="font-medium text-text-primary">Screen Print</div>
+                <div className="text-text-muted text-xs">+£1.50/colour/unit</div>
               </div>
               {addOns.screenPrint && (
                 <input type="number" min="1" max="6" value={addOns.screenPrintColors}
                   onChange={e => setAddOns({ ...addOns, screenPrintColors: parseInt(e.target.value) || 1 })}
-                  className="w-14 text-sm bg-[#111114] border border-[#1E1E24] text-gray-300 px-2 py-1 text-center" />
+                  className="w-14 font-inter text-sm bg-white border border-rule text-text-primary px-2 py-1 text-center" />
               )}
             </label>
-            <label className="flex items-center gap-3 p-3 border border-[#1E1E24] hover:border-[#FF0000]/30 cursor-pointer transition-colors duration-200">
+            <label className="flex items-center gap-3 p-3 border border-rule hover:border-accent-warm/40 cursor-pointer transition-colors duration-200">
               <input type="checkbox" checked={addOns.dtgPrint}
                 onChange={e => setAddOns({ ...addOns, dtgPrint: e.target.checked })}
-                className="w-4 h-4 accent-[#FF0000]" />
-              <div className="flex-1 text-sm">
-                <div className="font-medium text-gray-300">DTG Print</div>
-                <div className="text-gray-600 text-xs stat-readout">+£3.50/unit</div>
+                className="w-4 h-4 accent-accent-warm" />
+              <div className="flex-1 font-inter text-sm">
+                <div className="font-medium text-text-primary">DTG Print</div>
+                <div className="text-text-muted text-xs">+£3.50/unit</div>
               </div>
             </label>
           </div>
         </div>
 
         {/* Price summary */}
-        <div className="p-6 bg-[#111114]">
+        <div className="p-6 bg-white">
           <div className="flex justify-between items-baseline mb-1">
-            <span className="text-[11px] text-gray-600 uppercase tracking-widest"
-              style={{ fontFamily: "'SF Mono','Fira Code','Consolas',monospace" }}>PER UNIT</span>
-            <span className="text-xl font-bold text-white stat-readout">£{unitPrice.toFixed(2)}</span>
+            <span className="font-inter text-[11px] text-text-muted uppercase tracking-widest">Per Unit</span>
+            <span className="font-inter text-xl font-semibold text-espresso">£{unitPrice.toFixed(2)}</span>
           </div>
           {savings > 0 && (
-            <div className="text-xs text-green-500 mb-3 stat-readout">↓ £{savings.toFixed(2)} saved vs. minimum tier</div>
+            <div className="font-inter text-xs text-[#3A7D44] mb-3">↓ £{savings.toFixed(2)} saved vs. minimum tier</div>
           )}
-          <div className="flex justify-between items-baseline pt-4 border-t border-[#1E1E24]">
-            <span className="text-[11px] text-gray-500 uppercase tracking-widest"
-              style={{ fontFamily: "'SF Mono','Fira Code','Consolas',monospace" }}>TOTAL ESTIMATE</span>
-            <span className="text-3xl font-bold text-[#FF0000] stat-readout">
+          <div className="flex justify-between items-baseline pt-4 border-t border-rule">
+            <span className="font-inter text-[11px] text-text-muted uppercase tracking-widest">Total Estimate</span>
+            <span className="font-inter text-3xl font-semibold text-accent-warm">
               £{totalPrice.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
-          <p className="text-[10px] text-gray-600 mt-2"
-            style={{ fontFamily: "'SF Mono','Fira Code','Consolas',monospace" }}>
-            * EXCL. SHIPPING, CUSTOMS AND PACKAGING
+          <p className="font-inter text-[10px] text-text-light mt-2">
+            * Excl. shipping, customs and packaging
           </p>
         </div>
       </div>
 
       {/* RIGHT — Quote form */}
-      <div className="bg-[#0A0A0B]">
-        <div className="p-6 border-b border-[#1E1E24] bg-[#111114]">
-          <div className="text-[11px] text-[#FF0000] tracking-widest uppercase mb-1"
-            style={{ fontFamily: "'SF Mono','Fira Code','Consolas',monospace" }}>REQUEST QUOTE</div>
-          <h3 className="font-bold text-white">Submit your configuration</h3>
-          <p className="text-xs text-gray-500 mt-1 stat-readout">
+      <div className="bg-white">
+        <div className="p-6 border-b border-rule bg-cream/40">
+          <p className="font-inter text-[11px] text-accent-warm tracking-widest uppercase mb-1">Request Quote</p>
+          <h3 className="font-cinzel text-lg text-espresso">Submit your configuration</h3>
+          <p className="font-inter text-xs text-text-muted mt-1">
             {quantity.toLocaleString()} × {productType === 'tshirt' ? 'T-Shirts' : 'Hoodies'} · £{unitPrice.toFixed(2)}/unit ·{' '}
-            <span className="text-[#FF0000]">
+            <span className="text-accent-warm">
               £{totalPrice.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} est.
             </span>
           </p>
@@ -336,7 +317,7 @@ export default function PricingQuoteSection() {
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="border border-red-500/50 bg-red-900/20 text-red-400 px-4 py-3 text-sm">{error}</div>
+            <div className="border border-red-200 bg-red-50 text-red-700 px-4 py-3 font-inter text-sm">{error}</div>
           )}
 
           <div className="grid grid-cols-2 gap-3">
@@ -347,31 +328,28 @@ export default function PricingQuoteSection() {
               { label: 'Phone',   type: 'tel',   key: 'phone',   required: false },
             ].map(({ label, type, key, required }) => (
               <div key={key}>
-                <label className="block text-[10px] font-medium text-gray-600 mb-1 tracking-widest uppercase"
-                  style={{ fontFamily: "'SF Mono','Fira Code','Consolas',monospace" }}>{label}</label>
+                <label className="block font-inter text-[10px] font-medium text-text-muted mb-1 tracking-widest uppercase">{label}</label>
                 <input type={type} required={required}
                   value={(formData as any)[key]}
                   onChange={e => setFormData({ ...formData, [key]: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-[#111114] border border-[#1E1E24] text-white text-sm focus:border-[#FF0000]/60 focus:ring-1 focus:ring-[#FF0000]/30 outline-none transition-colors duration-200" />
+                  className="w-full px-3 py-2.5 bg-cream/40 border border-rule text-text-primary font-inter text-sm focus:border-accent-warm focus:outline-none transition-colors duration-200" />
               </div>
             ))}
           </div>
 
           {/* Size breakdown */}
           <div>
-            <label className="block text-[10px] font-medium text-gray-600 mb-2 tracking-widest uppercase"
-              style={{ fontFamily: "'SF Mono','Fira Code','Consolas',monospace" }}>
-              SIZE BREAKDOWN <span className="text-gray-700 normal-case tracking-normal">(optional)</span>
+            <label className="block font-inter text-[10px] font-medium text-text-muted mb-2 tracking-widest uppercase">
+              Size Breakdown <span className="text-text-light normal-case tracking-normal">(optional)</span>
             </label>
             <div className="grid grid-cols-7 gap-1.5">
               {SIZES.map(size => (
                 <div key={size} className="text-center">
-                  <label className="text-[10px] text-gray-600 block mb-1"
-                    style={{ fontFamily: "'SF Mono','Fira Code','Consolas',monospace" }}>{size}</label>
+                  <label className="font-inter text-[10px] text-text-light block mb-1">{size}</label>
                   <input type="number" min="0"
                     value={formData.sizes[size] || ''}
                     onChange={e => setFormData(prev => ({ ...prev, sizes: { ...prev.sizes, [size]: parseInt(e.target.value) || 0 } }))}
-                    className="w-full px-1 py-1.5 bg-[#111114] border border-[#1E1E24] text-white text-center text-xs focus:border-[#FF0000]/60 outline-none"
+                    className="w-full px-1 py-1.5 bg-cream/40 border border-rule text-text-primary font-inter text-center text-xs focus:border-accent-warm focus:outline-none"
                     placeholder="0" />
                 </div>
               ))}
@@ -380,17 +358,16 @@ export default function PricingQuoteSection() {
 
           {/* Garment colours */}
           <div>
-            <label className="block text-[10px] font-medium text-gray-600 mb-2 tracking-widest uppercase"
-              style={{ fontFamily: "'SF Mono','Fira Code','Consolas',monospace" }}>GARMENT COLOURS</label>
+            <label className="block font-inter text-[10px] font-medium text-text-muted mb-2 tracking-widest uppercase">Garment Colours</label>
             <div className="flex flex-wrap gap-1.5">
               {COLORS.map(color => (
                 <button key={color.name} type="button" onClick={() => toggleColor(color.name)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 border text-xs transition-all duration-200 ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 border font-inter text-xs transition-all duration-200 ${
                     formData.colors.includes(color.name)
-                      ? 'border-[#FF0000] bg-[#FF0000]/10 text-white'
-                      : 'border-[#1E1E24] text-gray-500 hover:border-gray-600 hover:text-gray-300'
+                      ? 'border-espresso bg-espresso text-cream'
+                      : 'border-rule text-text-muted hover:border-espresso/40 hover:text-espresso'
                   }`}>
-                  {color.hex && <span className="w-3 h-3 rounded-full border border-gray-700 shrink-0" style={{ backgroundColor: color.hex }} />}
+                  {color.hex && <span className="w-3 h-3 rounded-full border border-rule shrink-0" style={{ backgroundColor: color.hex }} />}
                   {color.name}
                 </button>
               ))}
@@ -399,15 +376,14 @@ export default function PricingQuoteSection() {
 
           {/* File upload */}
           <div>
-            <label className="block text-[10px] font-medium text-gray-600 mb-2 tracking-widest uppercase"
-              style={{ fontFamily: "'SF Mono','Fira Code','Consolas',monospace" }}>
-              DESIGN FILES <span className="text-gray-700 normal-case tracking-normal">(PNG, JPG, PDF, AI, PSD)</span>
+            <label className="block font-inter text-[10px] font-medium text-text-muted mb-2 tracking-widest uppercase">
+              Design Files <span className="text-text-light normal-case tracking-normal">(PNG, JPG, PDF, AI, PSD)</span>
             </label>
             <div onDragOver={e => e.preventDefault()} onDrop={handleFileDrop}
-              className="border border-dashed border-[#1E1E24] p-4 text-center hover:border-[#FF0000]/40 transition-colors duration-200 cursor-pointer">
-              <FolderOpen className="w-5 h-5 text-gray-600 mx-auto mb-1.5" />
-              <p className="text-xs text-gray-600 mb-2">Drag & drop or</p>
-              <label className="inline-block bg-[#111114] border border-[#1E1E24] text-gray-400 px-3 py-1.5 cursor-pointer hover:border-gray-600 hover:text-gray-200 transition-colors duration-200 text-xs font-medium">
+              className="border border-dashed border-rule p-4 text-center hover:border-accent-warm/50 transition-colors duration-200 cursor-pointer">
+              <FolderOpen className="w-5 h-5 text-text-light mx-auto mb-1.5" />
+              <p className="font-inter text-xs text-text-muted mb-2">Drag & drop or</p>
+              <label className="inline-block bg-cream/40 border border-rule text-text-muted px-3 py-1.5 cursor-pointer hover:border-espresso/40 hover:text-espresso transition-colors duration-200 font-inter text-xs font-medium">
                 Browse
                 <input type="file" multiple accept=".png,.jpg,.jpeg,.pdf,.ai,.psd" onChange={handleFileSelect} className="hidden" />
               </label>
@@ -415,14 +391,14 @@ export default function PricingQuoteSection() {
             {files.length > 0 && (
               <div className="mt-2 space-y-1.5">
                 {files.map((file, idx) => (
-                  <div key={idx} className="flex items-center justify-between bg-[#111114] border border-[#1E1E24] px-3 py-2 text-xs">
+                  <div key={idx} className="flex items-center justify-between bg-cream/40 border border-rule px-3 py-2 font-inter text-xs">
                     <div className="flex items-center gap-2">
-                      <FileText className="w-3.5 h-3.5 text-gray-600" />
-                      <span className="truncate max-w-[160px] text-gray-400">{file.name}</span>
-                      <span className="text-gray-600 stat-readout">{(file.size / 1024 / 1024).toFixed(1)}MB</span>
+                      <FileText className="w-3.5 h-3.5 text-text-light" />
+                      <span className="truncate max-w-[160px] text-text-muted">{file.name}</span>
+                      <span className="text-text-light">{(file.size / 1024 / 1024).toFixed(1)}MB</span>
                     </div>
                     <button type="button" onClick={() => setFiles(prev => prev.filter((_, i) => i !== idx))}
-                      className="text-gray-600 hover:text-[#FF0000] transition-colors duration-200 font-medium">×</button>
+                      className="text-text-light hover:text-accent-warm transition-colors duration-200 font-medium">×</button>
                   </div>
                 ))}
               </div>
@@ -431,19 +407,18 @@ export default function PricingQuoteSection() {
 
           {/* Details */}
           <div>
-            <label className="block text-[10px] font-medium text-gray-600 mb-1 tracking-widest uppercase"
-              style={{ fontFamily: "'SF Mono','Fira Code','Consolas',monospace" }}>ADDITIONAL DETAILS</label>
+            <label className="block font-inter text-[10px] font-medium text-text-muted mb-1 tracking-widest uppercase">Additional Details</label>
             <textarea rows={3} value={formData.details}
               onChange={e => setFormData({ ...formData, details: e.target.value })}
               placeholder="Deadline, fabric preferences, special instructions..."
-              className="w-full px-3 py-2.5 bg-[#111114] border border-[#1E1E24] text-white text-sm focus:border-[#FF0000]/60 focus:ring-1 focus:ring-[#FF0000]/30 outline-none resize-none placeholder:text-gray-700 transition-colors duration-200" />
+              className="w-full px-3 py-2.5 bg-cream/40 border border-rule text-text-primary font-inter text-sm focus:border-accent-warm focus:outline-none resize-none placeholder:text-text-light transition-colors duration-200" />
           </div>
 
           <button type="submit" disabled={submitting}
-            className="w-full bg-[#FF0000] text-white py-3.5 font-semibold text-sm tracking-widest uppercase hover:bg-red-500 hover:shadow-[0_0_20px_rgba(255,0,0,0.5)] disabled:opacity-40 transition-all duration-200">
+            className="w-full bg-espresso text-cream py-3.5 font-inter font-medium text-sm tracking-widest uppercase hover:bg-accent-warm disabled:opacity-40 transition-colors duration-200">
             {submitting
-              ? 'SUBMITTING...'
-              : `SUBMIT QUOTE — £${totalPrice.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              ? 'Submitting...'
+              : `Submit Quote — £${totalPrice.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           </button>
         </form>
       </div>

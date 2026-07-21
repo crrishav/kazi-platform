@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Check, ChevronDown, ChevronUp, Leaf, ArrowRight } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Leaf, ArrowRight, ShoppingBag } from 'lucide-react';
 
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
@@ -12,13 +12,17 @@ import AnnouncementBar from '@/components/AnnouncementBar';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import GarmentViewer from '@/components/GarmentViewer';
 import { products } from '@/data/products';
+import { useSmoothScroll } from '@/hooks/useSmoothScroll';
+import { useCart, parseUnitPrice } from '@/context/CartContext';
 
 interface ProductDetailClientProps {
   slug: string;
 }
 
 export default function ProductDetailClient({ slug }: ProductDetailClientProps) {
+  useSmoothScroll();
   const product = products.find((p) => p.slug === slug);
+  const { addItem } = useCart();
 
   // States
   const [selectedColor, setSelectedColor] = useState(0);
@@ -26,6 +30,7 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
   const [viewMode, setViewMode] = useState<'image' | '3d'>('image');
   const [activeAccordion, setActiveAccordion] = useState<'details' | 'fabric' | 'sustainability' | null>('details');
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
 
   // Handle color default initialization when slug changes
   useEffect(() => {
@@ -67,6 +72,24 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
 
   const toggleAccordion = (section: 'details' | 'fabric' | 'sustainability') => {
     setActiveAccordion(activeAccordion === section ? null : section);
+  };
+
+  const handleAddToBag = () => {
+    addItem(
+      {
+        id: `${product.slug}-${activeColorName}-${selectedSize}`,
+        slug: product.slug,
+        name: product.name,
+        image: product.image,
+        price: product.price,
+        unitPrice: parseUnitPrice(product.price),
+        color: hasColors ? activeColorName : undefined,
+        size: selectedSize,
+      },
+      50
+    );
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 2000);
   };
 
   return (
@@ -252,6 +275,23 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
               </div>
 
               {/* Call to Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                <button
+                  onClick={handleAddToBag}
+                  className="flex-1 inline-flex items-center justify-center gap-2 bg-espresso text-cream font-inter text-xs tracking-button uppercase py-4 hover:bg-accent-warm transition-colors duration-200"
+                >
+                  {justAdded ? (
+                    <>
+                      <Check size={13} strokeWidth={1.5} /> Added to Bag
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag size={13} strokeWidth={1.5} /> Add to Bag · MOQ 50
+                    </>
+                  )}
+                </button>
+              </div>
+
               <div className="flex flex-col sm:flex-row gap-3 mb-10">
                 <Link
                   href={`/configure?garment=${product.garment}&colour=${encodeURIComponent(activeColorHex)}`}

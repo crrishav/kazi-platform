@@ -1,5 +1,8 @@
+'use client';
+
 import Navigation from '@/components/Navigation';
 import Link from 'next/link';
+import { useSmoothScroll } from '@/hooks/useSmoothScroll';
 
 const PRODUCTS = [
   { name: 'Organic Crew Tee',      slug: 'organic-crew-tee',      price: 75,  garment: 't-shirt' },
@@ -13,6 +16,7 @@ const PRODUCTS = [
 ];
 
 export default function MenCollectionsPage() {
+  useSmoothScroll();
   return (
     <main className="min-h-screen bg-cream">
       <Navigation />

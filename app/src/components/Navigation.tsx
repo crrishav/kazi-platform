@@ -5,12 +5,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { User, Search, ShoppingBag, Menu, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import CartDrawer from "@/components/CartDrawer";
+import { useCart } from "@/context/CartContext";
 
 export default function Navigation() {
   const [isScrolled, setIsScrolled]         = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen]         = useState(false);
   const [userRole, setUserRole]             = useState<string | null>(null);
   const pathname = usePathname();
+  const { totalItems } = useCart();
 
   // Close mobile menu on route change
   useEffect(() => { setIsMobileMenuOpen(false); }, [pathname]);
@@ -50,6 +54,8 @@ export default function Navigation() {
 
   const isHomepage = !pathname || pathname === "/";
   const showSolidNav = isScrolled || !isHomepage;
+  const hasAnnouncementBar =
+    isHomepage || (pathname?.startsWith("/products/") ?? false) || pathname === "/pricing";
 
   return (
     <nav
@@ -172,8 +178,34 @@ export default function Navigation() {
             <Search size={20} strokeWidth={1.5} color={showSolidNav ? "#1A1A1A" : "#ffffff"} />
           </button>
 
-          <button aria-label="Cart" className="relative transition-opacity duration-200 hover:opacity-60">
+          <button
+            aria-label={`Cart${totalItems > 0 ? ` (${totalItems} items)` : ""}`}
+            onClick={() => setIsCartOpen(true)}
+            className="relative transition-opacity duration-200 hover:opacity-60"
+          >
             <ShoppingBag size={20} strokeWidth={1.5} color={showSolidNav ? "#1A1A1A" : "#ffffff"} />
+            {totalItems > 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: -6,
+                  right: -8,
+                  minWidth: 16,
+                  height: 16,
+                  padding: "0 3px",
+                  borderRadius: "999px",
+                  backgroundColor: "#3A7D44",
+                  color: "#ffffff",
+                  fontFamily: "'Inter', sans-serif",
+                  fontSize: "9px",
+                  fontWeight: 600,
+                  lineHeight: "16px",
+                  textAlign: "center",
+                }}
+              >
+                {totalItems > 99 ? "99+" : totalItems}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -255,6 +287,8 @@ export default function Navigation() {
           </div>
         </div>
       )}
+
+      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} topOffset={hasAnnouncementBar ? 32 : 0} />
     </nav>
   );
 }

@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Upload, Check, ArrowRight, ArrowLeft } from 'lucide-react';
+import { useSmoothScroll } from '@/hooks/useSmoothScroll';
 
 const MODELS_READY = true;
 
@@ -62,6 +63,7 @@ function pricePerUnit(qty: number): number {
 }
 
 function ConfigurePageInner() {
+  useSmoothScroll();
   const searchParams = useSearchParams();
   const [step, setStep]           = useState(1);
   const [inputMode, setInputMode] = useState<'upload' | 'standard'>('upload');

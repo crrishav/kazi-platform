@@ -2,6 +2,7 @@
 
 import Navigation from '@/components/Navigation';
 import Link from 'next/link';
+import { useSmoothScroll } from '@/hooks/useSmoothScroll';
 
 const STORIES = [
   {
@@ -49,6 +50,7 @@ const STORIES = [
 ];
 
 export default function StoriesPage() {
+  useSmoothScroll();
   return (
     <main className="min-h-screen bg-cream">
       <Navigation />

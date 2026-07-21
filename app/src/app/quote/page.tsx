@@ -6,11 +6,13 @@ import Navigation from '@/components/Navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Check, Upload, ArrowRight } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+import { useSmoothScroll } from '@/hooks/useSmoothScroll';
 
 const PRODUCT_TYPES = ['T-Shirts', 'Hoodies', 'Polo Shirts', 'Sweatshirts', 'Jackets', 'Other'];
 const QTY_RANGES    = ['50–99', '100–249', '250–499', '500–999', '1,000+'];
 
 function QuotePageInner() {
+  useSmoothScroll();
   const searchParams = useSearchParams();
   const [form, setForm] = useState({
     name: '', email: '', company: '', phone: '',

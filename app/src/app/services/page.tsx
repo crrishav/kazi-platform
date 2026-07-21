@@ -1,5 +1,8 @@
+'use client';
+
 import Navigation from '@/components/Navigation';
 import Link from 'next/link';
+import { useSmoothScroll } from '@/hooks/useSmoothScroll';
 
 const SERVICES = [
   {
@@ -55,6 +58,7 @@ const SERVICES = [
 ];
 
 export default function ServicesPage() {
+  useSmoothScroll();
   return (
     <main className="min-h-screen bg-cream">
       <Navigation />
