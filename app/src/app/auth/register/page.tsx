@@ -54,7 +54,7 @@ export default function RegisterPage() {
     return (
       <>
         <Navigation />
-        <main className="h-screen overflow-hidden bg-cream flex items-center justify-center px-6 pt-20 pb-3">
+        <main className="h-screen overflow-hidden bg-white flex items-center justify-center px-6 pt-28 pb-3">
           <div className="w-full max-w-md text-center">
             <div className="flex justify-center mb-4">
               <div className="w-14 h-14 border border-rule-light flex items-center justify-center">
@@ -81,17 +81,11 @@ export default function RegisterPage() {
   return (
     <>
       <Navigation />
-      <main className="h-screen overflow-hidden bg-cream flex items-center justify-center px-6 pt-20 pb-3">
+      <main className="h-screen overflow-hidden bg-white flex items-center justify-center px-6 pt-28 pb-3">
       <div className="w-full max-w-md">
 
         {/* Brand */}
         <div className="text-center mb-3">
-          <Link
-            href="/"
-            className="font-cinzel tracking-logo text-espresso text-sm uppercase hover:text-accent-warm transition-colors duration-200"
-          >
-            Kazi Manufacturing
-          </Link>
           <h1 className="font-cinzel text-lg text-espresso mt-1.5 mb-0.5">
             Create account
           </h1>
@@ -165,7 +159,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-espresso text-cream font-inter text-xs tracking-button uppercase py-3 hover:bg-accent-warm disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-200"
+              className="w-full bg-accent-warm text-white font-inter text-xs tracking-button uppercase py-3 hover:bg-espresso disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-200"
             >
               {loading ? 'Creating account…' : 'Create Account'}
             </button>

@@ -6,9 +6,14 @@ import { usePathname } from "next/navigation";
 import { User, Search, ShoppingBag, Menu, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import CartDrawer from "@/components/CartDrawer";
+import AnnouncementBar from "@/components/AnnouncementBar";
 import { useCart } from "@/context/CartContext";
 
-export default function Navigation() {
+interface NavigationProps {
+  showAnnouncementBar?: boolean;
+}
+
+export default function Navigation({ showAnnouncementBar = true }: NavigationProps) {
   const [isScrolled, setIsScrolled]         = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen]         = useState(false);
@@ -54,14 +59,14 @@ export default function Navigation() {
 
   const isHomepage = !pathname || pathname === "/";
   const showSolidNav = isScrolled || !isHomepage;
-  const hasAnnouncementBar =
-    isHomepage || (pathname?.startsWith("/products/") ?? false) || pathname === "/pricing";
 
   return (
+    <>
+    {showAnnouncementBar && <AnnouncementBar />}
     <nav
       className="fixed left-0 right-0 transition-all duration-500"
       style={{
-        top: isHomepage ? "32px" : "0px",
+        top: showAnnouncementBar ? "32px" : "0px",
         zIndex: 90,
         backgroundColor: showSolidNav ? "rgba(255,255,255,0.97)" : "rgba(255,255,255,0)",
         backdropFilter: showSolidNav ? "blur(16px)" : "none",
@@ -131,12 +136,12 @@ export default function Navigation() {
             src="/logos/kazi-logo.png"
             alt="Kazi Manufacturing"
             style={{
-              width: "200px",
-              height: "200px",
+              width: "172px",
+              height: "172px",
               objectFit: "contain",
               flexShrink: 0,
-              marginTop: "-53px",
-              marginLeft: "-17px",
+              marginTop: "-44px",
+              marginLeft: "-15px",
               filter: showSolidNav ? "brightness(0)" : "brightness(0) invert(1)",
               transition: "filter 0.4s ease",
               userSelect: "none",
@@ -287,8 +292,9 @@ export default function Navigation() {
           </div>
         </div>
       )}
-
-      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} topOffset={hasAnnouncementBar ? 32 : 0} />
     </nav>
+
+    <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} topOffset={showAnnouncementBar ? 32 : 0} />
+    </>
   );
 }

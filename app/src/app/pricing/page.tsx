@@ -2,16 +2,13 @@
 
 import Navigation from '@/components/Navigation';
 import PricingQuoteSection from '@/components/PricingQuoteSection';
-import AnnouncementBar from '@/components/AnnouncementBar';
 import Footer from '@/components/Footer';
-import WhatsAppButton from '@/components/WhatsAppButton';
 import { useSmoothScroll } from '@/hooks/useSmoothScroll';
 
 export default function PricingPage() {
   useSmoothScroll();
   return (
-    <main className="min-h-screen bg-cream">
-      <AnnouncementBar />
+    <main className="min-h-screen bg-white">
       <Navigation />
 
       {/* Page Header */}
@@ -100,7 +97,6 @@ export default function PricingPage() {
       </section>
 
       <Footer />
-      <WhatsAppButton />
     </main>
   );
 }

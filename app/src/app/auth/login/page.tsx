@@ -36,17 +36,11 @@ function LoginForm() {
   return (
     <>
       <Navigation />
-      <main className="h-screen overflow-hidden bg-cream flex items-center justify-center px-6 pt-20 pb-3">
+      <main className="h-screen overflow-hidden bg-white flex items-center justify-center px-6 pt-28 pb-3">
       <div className="w-full max-w-md">
 
         {/* Brand */}
         <div className="text-center mb-4">
-          <Link
-            href="/"
-            className="font-cinzel tracking-logo text-espresso text-sm uppercase hover:text-accent-warm transition-colors duration-200"
-          >
-            Kazi Manufacturing
-          </Link>
           <h1 className="font-cinzel text-xl text-espresso mt-2 mb-0.5">
             Welcome back
           </h1>
@@ -103,7 +97,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-espresso text-cream font-inter text-xs tracking-button uppercase py-3 hover:bg-accent-warm disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-200"
+              className="w-full bg-accent-warm text-white font-inter text-xs tracking-button uppercase py-3 hover:bg-espresso disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-200"
             >
               {loading ? 'Signing in…' : 'Sign In'}
             </button>
@@ -139,7 +133,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-cream flex items-center justify-center">
+        <div className="min-h-screen bg-white flex items-center justify-center">
           <span className="font-cinzel text-text-muted text-sm tracking-widest uppercase">Loading…</span>
         </div>
       }

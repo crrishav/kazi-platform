@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
     return (
       <>
         <Navigation />
-        <main className="h-screen overflow-hidden bg-cream flex items-center justify-center px-6 pt-20 pb-3">
+        <main className="h-screen overflow-hidden bg-white flex items-center justify-center px-6 pt-28 pb-3">
           <div className="w-full max-w-md text-center">
             <div className="flex justify-center mb-4">
               <div className="w-14 h-14 border border-rule-light flex items-center justify-center">
@@ -64,7 +64,7 @@ export default function ForgotPasswordPage() {
   return (
     <>
       <Navigation />
-      <main className="h-screen overflow-hidden bg-cream flex items-center justify-center px-6 pt-20 pb-3">
+      <main className="h-screen overflow-hidden bg-white flex items-center justify-center px-6 pt-28 pb-3">
       <div className="w-full max-w-md">
 
         {/* Brand */}

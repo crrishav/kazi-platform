@@ -28,7 +28,7 @@ html {
 
 body {
   font-family: 'Inter', sans-serif;
-  background-color: var(--color-bg-cream);
+  background-color: var(--color-bg-white);
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -123,16 +123,6 @@ body {
 .footer-input:focus {
   border-bottom-color: var(--color-text-primary);
   outline: none;
-}
-
-/* WhatsApp button hover */
-.whatsapp-btn {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.whatsapp-btn:hover {
-  transform: scale(1.08);
-  box-shadow: 0 6px 24px rgba(37, 211, 102, 0.4);
 }
 
 /* Ghost button hover */

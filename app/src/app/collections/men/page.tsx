@@ -18,10 +18,10 @@ const PRODUCTS = [
 export default function MenCollectionsPage() {
   useSmoothScroll();
   return (
-    <main className="min-h-screen bg-cream">
+    <main className="min-h-screen bg-white">
       <Navigation />
 
-      <section className="pt-40 pb-16 px-6 border-b border-rule">
+      <section className="pt-48 pb-16 px-6 border-b border-rule">
         <div className="max-w-5xl mx-auto">
           <p className="font-inter text-xs tracking-nav text-text-muted uppercase mb-3">Collections</p>
           <h1 className="font-cinzel text-4xl md:text-5xl text-espresso mb-5">Men</h1>

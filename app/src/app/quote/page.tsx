@@ -108,7 +108,7 @@ function QuotePageInner() {
 
   if (success) {
     return (
-      <main className="min-h-screen bg-cream">
+      <main className="min-h-screen bg-white">
         <Navigation />
         <div className="min-h-screen flex items-center justify-center px-6">
           <div className="text-center max-w-md">
@@ -138,11 +138,11 @@ function QuotePageInner() {
   }
 
   return (
-    <main className="min-h-screen bg-cream">
+    <main className="min-h-screen bg-white">
       <Navigation />
 
       {/* Hero */}
-      <section className="pt-40 pb-16 px-6 text-center border-b border-rule">
+      <section className="pt-48 pb-16 px-6 text-center border-b border-rule">
         <p className="font-inter text-xs tracking-nav text-text-muted uppercase mb-4">Custom Production</p>
         <h1 className="font-cinzel text-4xl md:text-5xl text-espresso mb-5 leading-tight">
           Begin Your Collection

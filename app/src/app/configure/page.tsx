@@ -118,10 +118,10 @@ function ConfigurePageInner() {
   const totalGBP = (ppu * qty).toFixed(2);
 
   return (
-    <main className="min-h-screen bg-cream">
+    <main className="min-h-screen bg-white">
       <Navigation />
 
-      <div className="pt-36 pb-16 px-6 max-w-7xl mx-auto">
+      <div className="pt-44 pb-16 px-6 max-w-7xl mx-auto">
 
         {/* Header */}
         <div className="mb-10 border-b border-rule pb-8">

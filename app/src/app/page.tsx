@@ -3,9 +3,7 @@
 import { useRef } from "react";
 import { useSmoothScroll } from "@/hooks/useSmoothScroll";
 import { useImagePreloader } from "@/hooks/useImagePreloader";
-import AnnouncementBar from "@/components/AnnouncementBar";
 import Navigation from "@/components/Navigation";
-import WhatsAppButton from "@/components/WhatsAppButton";
 import LoadingOverlay from "@/components/LoadingOverlay";
 import Footer from "@/components/Footer";
 import HeroSection from "@/sections/HeroSection";
@@ -28,7 +26,6 @@ export default function Home() {
 
       <div ref={containerRef}>
         {/* Fixed Header */}
-        <AnnouncementBar />
         <Navigation />
 
         {/* Main Content */}
@@ -43,9 +40,6 @@ export default function Home() {
 
         <Footer />
       </div>
-
-      {/* Floating WhatsApp Button */}
-      <WhatsAppButton />
     </>
   );
 }
