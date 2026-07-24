@@ -366,8 +366,6 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
                   name={p.name}
                   price={p.price}
                   image={p.image}
-                  colors={p.colors}
-                  badge={p.badge}
                   index={idx}
                   href={`/products/${p.slug}`}
                 />

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
+import ScrollToTop from "@/components/ScrollToTop";
+import SplashScreen from "@/components/SplashScreen";
 
 export const metadata: Metadata = {
   title: "Kazi Manufacturing | Sustainable Garment Factory Bangladesh",
@@ -15,6 +17,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <SplashScreen />
+        <ScrollToTop />
         <CartProvider>{children}</CartProvider>
       </body>
     </html>

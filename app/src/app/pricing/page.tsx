@@ -11,21 +11,8 @@ export default function PricingPage() {
     <main className="min-h-screen bg-white">
       <Navigation />
 
-      {/* Page Header */}
-      <div className="pt-40 pb-16 px-6 border-b border-rule">
-        <div className="max-w-5xl mx-auto">
-          <p className="font-inter text-xs tracking-nav text-text-muted uppercase mb-3">
-            Quote Engine
-          </p>
-          <h1 className="font-cinzel text-4xl md:text-5xl text-espresso mb-5">Get a Quote</h1>
-          <p className="font-inter text-text-muted text-base max-w-xl leading-relaxed">
-            Configure your order below and submit a request — we&apos;ll respond within 24 hours.
-          </p>
-        </div>
-      </div>
-
       {/* Quote Calculator */}
-      <section className="py-16 px-6">
+      <section className="pt-40 pb-16 px-6">
         <div className="max-w-6xl mx-auto">
           <PricingQuoteSection />
         </div>

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Navigation from '@/components/Navigation';
+import Footer from '@/components/Footer';
 import { useSmoothScroll } from '@/hooks/useSmoothScroll';
 
 function LoginForm() {
@@ -36,7 +37,7 @@ function LoginForm() {
   return (
     <>
       <Navigation />
-      <main className="h-screen overflow-hidden bg-white flex items-center justify-center px-6 pt-28 pb-3">
+      <main className="min-h-screen bg-white flex items-center justify-center px-6 pt-28 pb-3">
       <div className="w-full max-w-md">
 
         {/* Brand */}
@@ -125,6 +126,7 @@ function LoginForm() {
         </div>
       </div>
       </main>
+      <Footer />
     </>
   );
 }

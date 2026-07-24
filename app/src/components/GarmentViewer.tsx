@@ -192,8 +192,6 @@ export default function GarmentViewer({
         maxDistance={4.5}
         minPolarAngle={Math.PI / 5}
         maxPolarAngle={Math.PI / 1.6}
-        autoRotate
-        autoRotateSpeed={0.6}
       />
     </Canvas>
   )

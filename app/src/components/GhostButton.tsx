@@ -28,7 +28,6 @@ export default function GhostButton({ children, onClick, href, variant = "dark" 
     lineHeight: 1.0,
     textTransform: "uppercase" as const,
     cursor: "pointer",
-    transition: "background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease",
     textDecoration: "none",
     display: "inline-block",
     textAlign: "center",
@@ -38,9 +37,12 @@ export default function GhostButton({ children, onClick, href, variant = "dark" 
     return (
       <a
         href={href}
+        className="ghost-button"
         style={baseStyle}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        onFocus={() => setIsHovered(true)}
+        onBlur={() => setIsHovered(false)}
       >
         {children}
       </a>
@@ -50,9 +52,12 @@ export default function GhostButton({ children, onClick, href, variant = "dark" 
   return (
     <button
       onClick={onClick}
+      className="ghost-button"
       style={baseStyle}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onFocus={() => setIsHovered(true)}
+      onBlur={() => setIsHovered(false)}
     >
       {children}
     </button>

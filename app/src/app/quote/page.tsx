@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
+import Footer from '@/components/Footer';
 import { createClient } from '@/lib/supabase/client';
 import { Check, Upload, ArrowRight } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
@@ -133,6 +134,7 @@ function QuotePageInner() {
             </div>
           </div>
         </div>
+        <Footer />
       </main>
     );
   }
@@ -141,28 +143,8 @@ function QuotePageInner() {
     <main className="min-h-screen bg-white">
       <Navigation />
 
-      {/* Hero */}
-      <section className="pt-48 pb-16 px-6 text-center border-b border-rule">
-        <p className="font-inter text-xs tracking-nav text-text-muted uppercase mb-4">Custom Production</p>
-        <h1 className="font-cinzel text-4xl md:text-5xl text-espresso mb-5 leading-tight">
-          Begin Your Collection
-        </h1>
-        <p className="font-inter text-text-muted text-base max-w-xl mx-auto leading-relaxed">
-          Tell us about your project and we&apos;ll respond with a detailed quote within 24 hours.
-          No commitment required.
-        </p>
-        <div className="flex flex-wrap justify-center gap-6 mt-8">
-          {['Minimum 50 units', '24-hr response', 'No obligation'].map(tag => (
-            <div key={tag} className="flex items-center gap-2">
-              <div className="w-1 h-1 rounded-full bg-accent-warm" />
-              <span className="font-inter text-xs text-text-muted">{tag}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* Form */}
-      <section className="py-16 px-6">
+      <section className="pt-48 pb-16 px-6">
         <div className="max-w-4xl mx-auto">
 
           <form onSubmit={handleSubmit}>
@@ -345,6 +327,7 @@ function QuotePageInner() {
           </div>
         </div>
       </section>
+      <Footer />
     </main>
   );
 }

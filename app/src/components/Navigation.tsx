@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { User, Search, ShoppingBag, Menu, X } from "lucide-react";
+import { User, ShoppingBag, Menu, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import CartDrawer from "@/components/CartDrawer";
 import AnnouncementBar from "@/components/AnnouncementBar";
@@ -50,8 +50,8 @@ export default function Navigation({ showAnnouncementBar = true }: NavigationPro
                              "/auth/login";
 
   const leftNavLinks = [
-    { label: "Atelier",      href: "/configure" },
-    { label: "Our Heritage", href: "/services" },
+    { label: "Design Your Garment", href: "/configure" },
+    { label: "Our Services",        href: "/services" },
   ];
 
   const isActive = (href: string) =>
@@ -153,7 +153,7 @@ export default function Navigation({ showAnnouncementBar = true }: NavigationPro
         {/* Right: CTA + Icons */}
         <div className="flex items-center gap-4">
 
-          {/* Enquire — hidden on mobile */}
+          {/* Request a Quote — hidden on mobile */}
           <Link
             href="/quote"
             className="hidden md:inline-flex items-center nav-link-underline"
@@ -168,7 +168,7 @@ export default function Navigation({ showAnnouncementBar = true }: NavigationPro
               paddingBottom: "2px",
             }}
           >
-            Enquire
+            Request a Quote
           </Link>
 
           <Link
@@ -178,10 +178,6 @@ export default function Navigation({ showAnnouncementBar = true }: NavigationPro
           >
             <User size={20} strokeWidth={1.5} color={showSolidNav ? "#1A1A1A" : "#ffffff"} />
           </Link>
-
-          <button aria-label="Search" className="transition-opacity duration-200 hover:opacity-60">
-            <Search size={20} strokeWidth={1.5} color={showSolidNav ? "#1A1A1A" : "#ffffff"} />
-          </button>
 
           <button
             aria-label={`Cart${totalItems > 0 ? ` (${totalItems} items)` : ""}`}
@@ -246,7 +242,7 @@ export default function Navigation({ showAnnouncementBar = true }: NavigationPro
               </Link>
             ))}
 
-            {/* Enquire CTA */}
+            {/* Request a Quote CTA */}
             <div className="pt-6">
               <Link
                 href="/quote"
@@ -264,7 +260,7 @@ export default function Navigation({ showAnnouncementBar = true }: NavigationPro
                   textDecoration: "none",
                 }}
               >
-                Enquire
+                Request a Quote
               </Link>
             </div>
 

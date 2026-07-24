@@ -24,7 +24,7 @@ const sustainabilityLinks = [
 
 const workWithUsLinks = [
   { label: "Request a Sample",         href: "/quote" },
-  { label: "Design Your Collection",   href: "/configure" },
+  { label: "Design Your Garment",      href: "/configure" },
   { label: "Pricing",                  href: "/pricing" },
   { label: "Our Certifications",       href: "#" },
   { label: "Sustainability Report",    href: "#" },

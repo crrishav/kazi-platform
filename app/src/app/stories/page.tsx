@@ -1,6 +1,7 @@
 "use client";
 
 import Navigation from '@/components/Navigation';
+import Footer from '@/components/Footer';
 import Link from 'next/link';
 import { useSmoothScroll } from '@/hooks/useSmoothScroll';
 
@@ -160,6 +161,7 @@ export default function StoriesPage() {
           </form>
         </div>
       </section>
+      <Footer />
     </main>
   );
 }

@@ -5,7 +5,10 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Upload, Check, ArrowRight, ArrowLeft } from 'lucide-react';
+import {
+  Upload, ArrowRight, RotateCw, Minus, Plus, ChevronDown, ChevronUp, X,
+  Shirt, Layers, Palette, ImagePlus, PoundSterling, BookmarkPlus, Trash2,
+} from 'lucide-react';
 import { useSmoothScroll } from '@/hooks/useSmoothScroll';
 
 const MODELS_READY = true;
@@ -52,7 +55,26 @@ const PLACEMENTS = [
   { id: 'back',        label: 'Back',        note: 'Centred, below collar' },
 ] as const;
 
-const STEPS = ['Pattern', 'Fabric', 'Colour', 'Logo', 'Quantity'];
+const VOLUME_TIERS: [number, number][] = [[50, 10.20], [100, 7.80], [200, 6.00], [500, 4.50], [1000, 3.20]];
+
+type PanelId = 'garment' | 'fabric' | 'colour' | 'logo' | 'quantity';
+
+interface SavedDesign {
+  id: string;
+  garment: string;
+  fabric: string;
+  colour: string;
+  qty: number;
+  logoPreviewUrl?: string;
+}
+
+const DOCK_ITEMS: { id: PanelId; label: string; icon: typeof Shirt }[] = [
+  { id: 'garment',  label: 'Garment',  icon: Shirt },
+  { id: 'fabric',   label: 'Fabric',   icon: Layers },
+  { id: 'colour',   label: 'Colour',   icon: Palette },
+  { id: 'logo',     label: 'Logo',     icon: ImagePlus },
+  { id: 'quantity', label: 'Quantity & Pricing', icon: PoundSterling },
+];
 
 function pricePerUnit(qty: number): number {
   if (qty >= 1000) return 3.20;
@@ -62,13 +84,37 @@ function pricePerUnit(qty: number): number {
   return 10.20;
 }
 
+function ConfigPanel({
+  title, onClose, children, side = 'left', headerAction,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  side?: 'left' | 'right';
+  headerAction?: React.ReactNode;
+}) {
+  return (
+    <div className={`absolute bottom-24 ${side === 'left' ? 'left-4 sm:left-6' : 'right-4 sm:right-6'} w-[300px] max-h-[min(70vh,540px)] bg-white border border-rule rounded-xl shadow-xl flex flex-col overflow-hidden z-20`}>
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-rule shrink-0">
+        <span className="font-cinzel text-sm text-espresso">{title}</span>
+        <div className="flex items-center gap-3 shrink-0">
+          {headerAction}
+          <button onClick={onClose} aria-label="Close panel" className="text-text-muted hover:text-espresso transition-colors">
+            <X size={15} strokeWidth={1.5} />
+          </button>
+        </div>
+      </div>
+      <div className="min-h-0 overflow-y-auto px-4 py-4">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function ConfigurePageInner() {
   useSmoothScroll();
   const searchParams = useSearchParams();
-  const [step, setStep]           = useState(1);
-  const [inputMode, setInputMode] = useState<'upload' | 'standard'>('upload');
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [dragOver, setDragOver]   = useState(false);
+  const [activePanel, setActivePanel] = useState<PanelId | null>(null);
   const [garment, setGarment]     = useState<string>('t-shirt');
   const [fabric, setFabric]       = useState<string>('cotton-180');
   const [colour, setColour]       = useState<string>('#E8E0D0');
@@ -76,13 +122,15 @@ function ConfigurePageInner() {
   const [logoFile, setLogoFile]   = useState<File | null>(null);
   const [logoUrl, setLogoUrl]     = useState<string | undefined>(undefined);
   const [qty, setQty]             = useState<number>(100);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [collection, setCollection] = useState<SavedDesign[]>([]);
+  const [showCollection, setShowCollection] = useState(false);
 
   // Pre-fill garment and colour from query params (e.g. /configure?garment=hoodie&colour=%231B3D2A)
   useEffect(() => {
     const g = searchParams.get('garment');
     if (g && GARMENT_TYPES.some(gt => gt.id === g)) {
       setGarment(g);
-      setInputMode('standard');
     }
     const c = searchParams.get('colour');
     if (c && COLOURS.some(col => col.hex.toLowerCase() === c.toLowerCase())) {
@@ -90,14 +138,8 @@ function ConfigurePageInner() {
     }
   }, [searchParams]);
 
-  function handleFileDrop(e: React.DragEvent) {
-    e.preventDefault(); setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) setUploadedFile(file);
-  }
-  function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) setUploadedFile(file);
+  function togglePanel(id: PanelId) {
+    setActivePanel(p => (p === id ? null : id));
   }
   function handleLogoInput(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -110,466 +152,352 @@ function ConfigurePageInner() {
     if (logoUrl) URL.revokeObjectURL(logoUrl);
     setLogoFile(null); setLogoUrl(undefined);
   }
+  function addToCollection() {
+    setCollection(prev => [
+      {
+        id: crypto.randomUUID(),
+        garment, fabric, colour, qty,
+        // Mint an independent object URL — the live `logoUrl` gets revoked on replace/clear,
+        // which would otherwise break this saved entry's thumbnail.
+        logoPreviewUrl: logoFile ? URL.createObjectURL(logoFile) : undefined,
+      },
+      ...prev,
+    ]);
+    setShowCollection(true);
+  }
+  function removeFromCollection(id: string) {
+    setCollection(prev => {
+      const target = prev.find(entry => entry.id === id);
+      if (target?.logoPreviewUrl) URL.revokeObjectURL(target.logoPreviewUrl);
+      return prev.filter(entry => entry.id !== id);
+    });
+  }
 
-  const selectedColour = COLOURS.find(c => c.hex === colour);
-  const selectedFabric = FABRICS.find(f => f.id === fabric);
-  const selectedGarment = GARMENT_TYPES.find(g => g.id === garment);
+  const selectedColour    = COLOURS.find(c => c.hex === colour);
+  const selectedFabric    = FABRICS.find(f => f.id === fabric);
+  const selectedGarment   = GARMENT_TYPES.find(g => g.id === garment);
+  const selectedPlacement = PLACEMENTS.find(p => p.id === placement);
   const ppu      = pricePerUnit(qty);
   const totalGBP = (ppu * qty).toFixed(2);
 
+  const qtyRange = qty >= 1000 ? '1,000+' : qty >= 500 ? '500–999' : qty >= 250 ? '250–499' : qty >= 100 ? '100–249' : '50–99';
+  const quoteHref = `/quote?${new URLSearchParams({
+    productType: garment === 'hoodie' ? 'Hoodies' : 'T-Shirts',
+    qtyRange,
+    details: `Custom configuration: ${selectedGarment?.label ?? garment}, Fabric: ${selectedFabric?.label ?? fabric} (${selectedFabric?.spec ?? ''}), Colour: ${selectedColour?.label ?? colour}, Logo: ${selectedPlacement?.label ?? placement}, Qty: ${qty} units, Est. total: £${totalGBP}`,
+  }).toString()}`;
+
   return (
-    <main className="min-h-screen bg-white">
+    <main className="h-[100dvh] overflow-hidden bg-white relative">
       <Navigation />
 
-      <div className="pt-44 pb-16 px-6 max-w-7xl mx-auto">
+      <div className="absolute inset-0 pt-[112px]">
+        <div className="relative w-full h-full bg-cream/30 overflow-hidden">
 
-        {/* Header */}
-        <div className="mb-10 border-b border-rule pb-8">
-          <p className="font-inter text-xs tracking-nav text-text-muted uppercase mb-3">3D Configurator</p>
-          <h1 className="font-cinzel text-3xl md:text-5xl text-espresso mb-3">
-            Design Your Collection
-          </h1>
-          <p className="font-inter text-text-muted text-base max-w-lg">
-            Configure your garment in 3D before a single stitch is made.
-          </p>
-        </div>
-
-        {/* Step progress */}
-        <div className="flex items-center mb-12 overflow-x-auto pb-1">
-          {STEPS.map((label, i) => {
-            const n = i + 1;
-            const isActive = step === n;
-            const isDone   = step > n;
-            return (
-              <button key={n} onClick={() => setStep(n)}
-                className={`flex items-center gap-0 shrink-0 ${i < 4 ? 'flex-1' : ''}`}>
-                <div className={`flex items-center gap-2.5 px-3.5 py-2.5 border font-inter text-[10px] tracking-nav uppercase whitespace-nowrap transition-all duration-200 ${
-                  isActive ? 'border-espresso bg-espresso text-cream'
-                  : isDone  ? 'border-accent-warm/50 bg-transparent text-accent-warm'
-                  :           'border-rule bg-transparent text-text-light hover:text-espresso hover:border-espresso/30'
-                }`}>
-                  <span className={`w-4 h-4 flex items-center justify-center text-[9px] border transition-colors ${
-                    isActive ? 'border-cream/40 text-cream'
-                    : isDone  ? 'border-accent-warm text-accent-warm'
-                    :           'border-rule text-text-light'
-                  }`}>{isDone ? '✓' : n}</span>
-                  <span className="hidden sm:inline">{label}</span>
+          {/* Canvas */}
+          <div className="absolute inset-0 bottom-28">
+            {MODELS_READY ? (
+              <GarmentViewer garment={garment} colour={colour} logoUrl={logoUrl} placement={placement} />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-5">
+                <div className="relative w-20 h-28 opacity-20">
+                  <div className="absolute inset-3 border border-espresso"
+                    style={{ animation: 'slowRotate 20s linear infinite', transformStyle: 'preserve-3d' }} />
                 </div>
-                {i < 4 && (
-                  <div className={`h-px flex-1 transition-colors duration-200 ${
-                    isDone ? 'bg-accent-warm/40' : 'bg-rule'
-                  }`} />
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Main layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-
-          {/* ── LEFT: Config panels ── */}
-          <div>
-
-            {/* STEP 1 — Pattern */}
-            {step === 1 && (
-              <div>
-                <h2 className="font-cinzel text-xl text-espresso mb-1">Your Pattern</h2>
-                <p className="font-inter text-sm text-text-muted mb-6">
-                  Upload your 2D tech pack for a custom 3D render within 24 hours, or configure from a standard base garment now.
-                </p>
-
-                {/* Mode toggle */}
-                <div className="flex gap-0 mb-6 border border-rule">
-                  {(['upload', 'standard'] as const).map(mode => (
-                    <button key={mode} onClick={() => setInputMode(mode)}
-                      className={`flex-1 py-2.5 font-inter text-xs tracking-nav uppercase transition-all duration-200 ${
-                        inputMode === mode
-                          ? 'bg-espresso text-cream'
-                          : 'bg-transparent text-text-muted hover:text-espresso'
-                      }`}>
-                      {mode === 'upload' ? 'Upload Pattern' : 'Standard Garment'}
-                    </button>
-                  ))}
-                </div>
-
-                {inputMode === 'upload' && (
-                  <div>
-                    <div
-                      onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                      onDragLeave={() => setDragOver(false)}
-                      onDrop={handleFileDrop}
-                      className={`relative border-2 border-dashed p-10 text-center transition-all duration-200 cursor-pointer ${
-                        dragOver        ? 'border-accent-warm bg-accent-warm/5'
-                        : uploadedFile  ? 'border-accent-warm/60 bg-accent-warm/5'
-                        :                 'border-rule hover:border-accent-warm/50 bg-white'
-                      }`}
-                    >
-                      <input type="file" accept=".dxf,.pdf,.ai,.svg,.png,.jpg,.jpeg,.zip"
-                        onChange={handleFileInput}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                      {uploadedFile ? (
-                        <div>
-                          <div className="w-10 h-10 border border-accent-warm/40 flex items-center justify-center mx-auto mb-3">
-                            <Check className="w-5 h-5 text-accent-warm" strokeWidth={1.5} />
-                          </div>
-                          <p className="font-inter text-sm text-espresso font-medium mb-0.5">{uploadedFile.name}</p>
-                          <p className="font-inter text-xs text-text-muted">{(uploadedFile.size / 1024).toFixed(0)} KB · Pattern received</p>
-                          <p className="mt-3 font-inter text-[10px] tracking-nav text-accent-warm uppercase">
-                            3D render sent within 24 hours
-                          </p>
-                        </div>
-                      ) : (
-                        <div>
-                          <div className="w-10 h-10 border border-rule flex items-center justify-center mx-auto mb-3">
-                            <Upload className="w-4 h-4 text-text-muted" strokeWidth={1.5} />
-                          </div>
-                          <p className="font-inter text-sm text-espresso mb-1">Drop your tech pack here</p>
-                          <p className="font-inter text-xs text-text-muted mb-3">or click to browse</p>
-                          <p className="font-inter text-[10px] tracking-nav text-text-light uppercase">
-                            DXF · PDF · AI · SVG · PNG · ZIP
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-4 p-5 border border-rule bg-white">
-                      <p className="font-inter text-[10px] tracking-nav text-text-light uppercase mb-3">What happens next</p>
-                      <ul className="font-inter text-xs text-text-muted space-y-2">
-                        <li className="flex items-start gap-2"><span className="text-accent-warm mt-0.5">→</span> Your pattern file is securely sent to our production team</li>
-                        <li className="flex items-start gap-2"><span className="text-accent-warm mt-0.5">→</span> We reconstruct it in 3D using professional garment software</li>
-                        <li className="flex items-start gap-2"><span className="text-accent-warm mt-0.5">→</span> You receive a render for approval within 24 hours</li>
-                      </ul>
-                    </div>
-                  </div>
-                )}
-
-                {inputMode === 'standard' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {GARMENT_TYPES.map(g => (
-                      <button key={g.id} onClick={() => setGarment(g.id)}
-                        className={`relative p-6 text-left border transition-all duration-200 ${
-                          garment === g.id
-                            ? 'border-espresso bg-espresso text-cream'
-                            : 'border-rule bg-white hover:border-espresso/40 text-espresso'
-                        }`}>
-                        <p className={`font-inter text-[9px] tracking-nav uppercase mb-3 ${garment === g.id ? 'text-cream/50' : 'text-text-light'}`}>{g.code}</p>
-                        <p className="font-cinzel text-base mb-1">{g.label}</p>
-                        <p className={`font-inter text-xs ${garment === g.id ? 'text-cream/60' : 'text-text-muted'}`}>{g.desc}</p>
-                        {garment === g.id && (
-                          <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-accent-warm" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <button
-                  onClick={() => setStep(2)}
-                  disabled={inputMode === 'upload' && !uploadedFile}
-                  className="mt-8 flex items-center gap-2 bg-espresso text-cream font-inter text-xs tracking-button uppercase px-8 py-3 hover:bg-accent-warm disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200"
-                >
-                  Next: Fabric <ArrowRight size={13} strokeWidth={1.5} />
-                </button>
-              </div>
-            )}
-
-            {/* STEP 2 — Fabric */}
-            {step === 2 && (
-              <div>
-                <h2 className="font-cinzel text-xl text-espresso mb-6">Choose Fabric</h2>
-                <div className="space-y-3">
-                  {FABRICS.map(f => (
-                    <button key={f.id} onClick={() => setFabric(f.id)}
-                      className={`w-full p-5 text-left border flex items-center justify-between transition-all duration-200 ${
-                        fabric === f.id
-                          ? 'border-espresso bg-espresso text-cream'
-                          : 'border-rule bg-white hover:border-espresso/40'
-                      }`}>
-                      <div>
-                        <p className={`font-inter text-[9px] tracking-nav uppercase mb-1 ${fabric === f.id ? 'text-cream/50' : 'text-text-light'}`}>{f.code}</p>
-                        <p className={`font-cinzel text-sm mb-0.5 ${fabric === f.id ? 'text-cream' : 'text-espresso'}`}>{f.label}</p>
-                        <p className={`font-inter text-xs ${fabric === f.id ? 'text-cream/60' : 'text-text-muted'}`}>{f.detail}</p>
-                      </div>
-                      <span className={`font-inter text-xs border px-2.5 py-1 shrink-0 ml-4 transition-colors ${
-                        fabric === f.id ? 'border-cream/30 text-cream' : 'border-rule text-text-muted'
-                      }`}>{f.spec}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-3 mt-8">
-                  <button onClick={() => setStep(1)} className="flex items-center gap-2 border border-rule text-text-muted font-inter text-xs tracking-button uppercase px-5 py-3 hover:border-espresso hover:text-espresso transition-all duration-200">
-                    <ArrowLeft size={13} strokeWidth={1.5} /> Back
-                  </button>
-                  <button onClick={() => setStep(3)} className="flex items-center gap-2 bg-espresso text-cream font-inter text-xs tracking-button uppercase px-8 py-3 hover:bg-accent-warm transition-colors duration-200">
-                    Next: Colour <ArrowRight size={13} strokeWidth={1.5} />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 3 — Colour */}
-            {step === 3 && (
-              <div>
-                <h2 className="font-cinzel text-xl text-espresso mb-6">Choose Colour</h2>
-                <div className="grid grid-cols-6 gap-3 mb-6">
-                  {COLOURS.map(c => (
-                    <div key={c.hex} className="flex flex-col items-center gap-1.5">
-                      <button
-                        onClick={() => setColour(c.hex)}
-                        title={c.label}
-                        className={`w-9 h-9 border-2 transition-all duration-200 ${
-                          colour === c.hex ? 'border-espresso scale-110 shadow-md' : 'border-rule hover:border-espresso/40'
-                        }`}
-                        style={{ backgroundColor: c.hex }}
-                      />
-                      <span className="font-inter text-[9px] text-text-light text-center leading-tight">{c.label}</span>
-                    </div>
-                  ))}
-                </div>
-                {/* Selected colour preview */}
-                <div className="flex items-center gap-4 p-4 border border-rule bg-white mb-6">
-                  <div className="w-10 h-10 border border-rule shrink-0" style={{ backgroundColor: colour }} />
-                  <div>
-                    <p className="font-inter text-[9px] tracking-nav text-text-light uppercase">Selected colour</p>
-                    <p className="font-cinzel text-sm text-espresso">{selectedColour?.label ?? colour}</p>
-                    <p className="font-inter text-xs text-text-light">{colour}</p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <button onClick={() => setStep(2)} className="flex items-center gap-2 border border-rule text-text-muted font-inter text-xs tracking-button uppercase px-5 py-3 hover:border-espresso hover:text-espresso transition-all duration-200">
-                    <ArrowLeft size={13} strokeWidth={1.5} /> Back
-                  </button>
-                  <button onClick={() => setStep(4)} className="flex items-center gap-2 bg-espresso text-cream font-inter text-xs tracking-button uppercase px-8 py-3 hover:bg-accent-warm transition-colors duration-200">
-                    Next: Logo <ArrowRight size={13} strokeWidth={1.5} />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 4 — Logo */}
-            {step === 4 && (
-              <div>
-                <h2 className="font-cinzel text-xl text-espresso mb-1">Logo &amp; Placement</h2>
-                <p className="font-inter text-sm text-text-muted mb-6">Upload your graphic — PNG or SVG with transparency works best.</p>
-
-                <div className="mb-6">
-                  {logoFile ? (
-                    <div className="flex items-center gap-4 p-4 border border-accent-warm/40 bg-accent-warm/5">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={logoUrl} alt="logo preview" className="w-14 h-14 object-contain border border-rule bg-white p-1" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-inter text-sm text-espresso truncate">{logoFile.name}</p>
-                        <p className="font-inter text-xs text-text-muted mt-0.5">{(logoFile.size / 1024).toFixed(0)} KB</p>
-                      </div>
-                      <button onClick={clearLogo}
-                        className="font-inter text-xs tracking-nav text-text-muted hover:text-red-500 uppercase shrink-0 transition-colors">
-                        Remove
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="relative flex flex-col items-center justify-center gap-3 p-8 border-2 border-dashed border-rule hover:border-accent-warm/50 bg-white cursor-pointer transition-all duration-200">
-                      <input type="file" accept=".png,.jpg,.jpeg,.svg,.webp" onChange={handleLogoInput} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                      <Upload className="w-5 h-5 text-text-light" strokeWidth={1.5} />
-                      <div className="text-center">
-                        <p className="font-inter text-sm text-espresso mb-1">Upload your graphic</p>
-                        <p className="font-inter text-[10px] tracking-nav text-text-light uppercase">PNG · SVG · JPG · WEBP</p>
-                      </div>
-                    </label>
-                  )}
-                </div>
-
-                <p className="font-inter text-[9px] tracking-nav text-text-light uppercase mb-3">Placement</p>
-                <div className="space-y-3 mb-8">
-                  {PLACEMENTS.map(p => (
-                    <label key={p.id}
-                      className={`flex items-center gap-4 p-5 border cursor-pointer transition-all duration-200 ${
-                        placement === p.id
-                          ? 'border-espresso bg-espresso text-cream'
-                          : 'border-rule bg-white hover:border-espresso/40'
-                      }`}>
-                      <input type="radio" name="placement" value={p.id} checked={placement === p.id}
-                        onChange={() => setPlacement(p.id)} className="sr-only" />
-                      <div className={`w-4 h-4 border shrink-0 flex items-center justify-center transition-colors ${
-                        placement === p.id ? 'border-cream/40' : 'border-rule'
-                      }`}>
-                        {placement === p.id && <div className="w-2 h-2 bg-cream" />}
-                      </div>
-                      <div>
-                        <p className={`font-cinzel text-sm ${placement === p.id ? 'text-cream' : 'text-espresso'}`}>{p.label}</p>
-                        <p className={`font-inter text-xs mt-0.5 ${placement === p.id ? 'text-cream/60' : 'text-text-muted'}`}>{p.note}</p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-                <div className="flex gap-3">
-                  <button onClick={() => setStep(3)} className="flex items-center gap-2 border border-rule text-text-muted font-inter text-xs tracking-button uppercase px-5 py-3 hover:border-espresso hover:text-espresso transition-all duration-200">
-                    <ArrowLeft size={13} strokeWidth={1.5} /> Back
-                  </button>
-                  <button onClick={() => setStep(5)} className="flex items-center gap-2 bg-espresso text-cream font-inter text-xs tracking-button uppercase px-8 py-3 hover:bg-accent-warm transition-colors duration-200">
-                    Next: Quantity <ArrowRight size={13} strokeWidth={1.5} />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 5 — Quantity */}
-            {step === 5 && (
-              <div>
-                <h2 className="font-cinzel text-xl text-espresso mb-6">Quantity &amp; Pricing</h2>
-
-                {/* Qty slider panel */}
-                <div className="p-6 border border-rule bg-white mb-5">
-                  <div className="flex items-end justify-between mb-5">
-                    <div>
-                      <p className="font-inter text-[9px] tracking-nav text-text-light uppercase mb-1">Units</p>
-                      <p className="font-cinzel text-4xl text-espresso">{qty}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-inter text-[9px] tracking-nav text-text-light uppercase mb-1">Per unit</p>
-                      <p className="font-cinzel text-4xl text-accent-warm">£{ppu.toFixed(2)}</p>
-                    </div>
-                  </div>
-                  <input
-                    type="range" min={50} max={1000} step={10}
-                    value={qty} onChange={e => setQty(Number(e.target.value))}
-                    className="w-full h-0.5 bg-rule appearance-none cursor-pointer accent-espresso mb-2"
-                    style={{ accentColor: '#1B3D2A' }}
-                  />
-                  <div className="flex justify-between font-inter text-[9px] text-text-light tracking-wide">
-                    <span>50</span><span>200</span><span>500</span><span>1,000</span>
-                  </div>
-                </div>
-
-                {/* Breakdown */}
-                <div className="border border-rule overflow-hidden mb-8">
-                  <div className="flex justify-between px-5 py-2.5 border-b border-rule bg-cream">
-                    <span className="font-inter text-[9px] tracking-nav text-text-light uppercase">Breakdown</span>
-                    <span className="font-inter text-[9px] tracking-nav text-text-light uppercase">GBP</span>
-                  </div>
-                  {[
-                    [`${qty} × £${ppu.toFixed(2)} per unit`, `£${totalGBP}`],
-                    ['UK Import Duty',             '£0.00 — DFQF'],
-                    ['Est. shipping (air freight)', 'TBC on quote'],
-                  ].map(([label, val]) => (
-                    <div key={label} className="flex items-center justify-between px-5 py-3.5 border-b border-rule last:border-0 bg-white">
-                      <span className="font-inter text-sm text-text-muted">{label}</span>
-                      <span className="font-inter text-sm text-espresso font-medium">{val}</span>
-                    </div>
-                  ))}
-                  <div className="flex items-center justify-between px-5 py-4 bg-espresso">
-                    <span className="font-cinzel text-sm text-cream">Estimated Total</span>
-                    <span className="font-cinzel text-xl text-accent-warm">£{totalGBP}</span>
-                  </div>
-                </div>
-
-                {/* Volume tiers */}
-                <div className="grid grid-cols-5 gap-px bg-rule mb-8">
-                  {[[50, 10.20], [100, 7.80], [200, 6.00], [500, 4.50], [1000, 3.20]].map(([units, price]) => (
-                    <div key={units} className={`p-3 text-center ${qty >= units ? 'bg-espresso' : 'bg-white'}`}>
-                      <p className={`font-inter text-[9px] tracking-nav uppercase mb-1 ${qty >= units ? 'text-cream/50' : 'text-text-light'}`}>{units}+</p>
-                      <p className={`font-cinzel text-sm ${qty >= units ? 'text-accent-warm' : 'text-text-muted'}`}>£{(price as number).toFixed(2)}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex gap-3">
-                  <button onClick={() => setStep(4)} className="flex items-center gap-2 border border-rule text-text-muted font-inter text-xs tracking-button uppercase px-5 py-3 hover:border-espresso hover:text-espresso transition-all duration-200">
-                    <ArrowLeft size={13} strokeWidth={1.5} /> Back
-                  </button>
-                </div>
+                <p className="font-inter text-xs text-text-light">3D preview loading</p>
               </div>
             )}
           </div>
 
-          {/* ── RIGHT: 3D Preview ── */}
-          <div className="lg:sticky lg:top-28 self-start">
+          {/* Live summary — top left */}
+          <div className="absolute top-4 left-4 sm:left-6 z-10 flex items-center gap-2 px-3.5 py-2 bg-white/90 backdrop-blur-sm border border-rule rounded-lg">
+            <span className="font-cinzel text-xs text-espresso whitespace-nowrap">{selectedGarment?.label ?? garment}</span>
+            <span className="text-rule">·</span>
+            <span className="font-inter text-[10px] tracking-nav text-text-muted uppercase whitespace-nowrap truncate max-w-[160px] sm:max-w-none">
+              {selectedFabric?.label ?? fabric} · {selectedColour?.label ?? colour}
+            </span>
+          </div>
 
-            {/* Status bar */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 bg-white border border-rule border-b-0 overflow-x-auto">
-              {[
-                selectedGarment?.label ?? garment,
-                selectedFabric?.label ?? fabric,
-                selectedColour?.label ?? colour,
-                `${qty} units`,
-              ].map((v, i) => (
-                <span key={i} className="font-inter text-[10px] tracking-nav text-text-muted uppercase whitespace-nowrap flex items-center gap-2">
-                  {i > 0 && <span className="text-rule/60">·</span>}
-                  {v}
-                </span>
-              ))}
+          {/* Live price — top right */}
+          <div className="absolute top-4 right-4 sm:right-6 z-10 flex items-baseline gap-1.5 px-3.5 py-2 bg-white/90 backdrop-blur-sm border border-rule rounded-lg">
+            <span className="font-cinzel text-sm text-accent-warm">£{ppu.toFixed(2)}</span>
+            <span className="font-inter text-[9px] text-text-light uppercase whitespace-nowrap">/unit · {qty} units</span>
+          </div>
+
+          {/* Rotate hint */}
+          {MODELS_READY && (
+            <div className="pointer-events-none absolute bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 border border-rule bg-white/85 backdrop-blur-sm rounded-full z-10">
+              <RotateCw size={11} className="text-text-light" strokeWidth={1.5} />
+              <span className="font-inter text-[9px] tracking-nav text-text-light uppercase">Drag to rotate</span>
             </div>
+          )}
 
-            {/* Canvas frame */}
-            <div className="relative bg-white border border-rule overflow-hidden" style={{ minHeight: 460 }}>
-              {/* Corner accents */}
-              <div className="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-accent-warm z-10 pointer-events-none" />
-              <div className="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-accent-warm z-10 pointer-events-none" />
-              <div className="absolute bottom-[88px] left-0 w-5 h-5 border-b-2 border-l-2 border-accent-warm z-10 pointer-events-none" />
-              <div className="absolute bottom-[88px] right-0 w-5 h-5 border-b-2 border-r-2 border-accent-warm z-10 pointer-events-none" />
-
-              {/* Label */}
-              <div className="absolute top-3 left-4 z-10">
-                <span className="font-inter text-[9px] tracking-nav text-text-light uppercase">3D Preview</span>
+          {/* ── Contextual panel ── */}
+          {activePanel === 'garment' && (
+            <ConfigPanel title="Garment" onClose={() => setActivePanel(null)}>
+              <div className="space-y-2.5">
+                {GARMENT_TYPES.map(g => (
+                  <button key={g.id} onClick={() => setGarment(g.id)}
+                    className={`relative w-full text-left border px-4 py-3 transition-all duration-200 ${
+                      garment === g.id
+                        ? 'border-espresso bg-espresso text-cream'
+                        : 'border-rule bg-white hover:border-espresso/40 text-espresso'
+                    }`}>
+                    <p className={`font-inter text-[9px] tracking-nav uppercase mb-1 ${garment === g.id ? 'text-cream/50' : 'text-text-light'}`}>{g.code}</p>
+                    <p className="font-cinzel text-sm mb-0.5">{g.label}</p>
+                    <p className={`font-inter text-xs ${garment === g.id ? 'text-cream/60' : 'text-text-muted'}`}>{g.desc}</p>
+                    {garment === g.id && <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-accent-warm" />}
+                  </button>
+                ))}
               </div>
+            </ConfigPanel>
+          )}
 
-              {/* Canvas */}
-              <div style={{ height: 360 }}>
-                {MODELS_READY && inputMode === 'standard' ? (
-                  <GarmentViewer garment={garment} colour={colour} logoUrl={logoUrl} placement={placement} />
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center gap-5">
-                    <div className="relative w-20 h-28 opacity-20">
-                      <div className="absolute inset-3 border border-espresso"
-                        style={{ animation: 'slowRotate 20s linear infinite', transformStyle: 'preserve-3d' }} />
+          {activePanel === 'fabric' && (
+            <ConfigPanel title="Fabric" onClose={() => setActivePanel(null)}>
+              <div className="space-y-2.5">
+                {FABRICS.map(f => (
+                  <button key={f.id} onClick={() => setFabric(f.id)}
+                    className={`w-full text-left border px-4 py-3 transition-all duration-200 ${
+                      fabric === f.id
+                        ? 'border-espresso bg-espresso text-cream'
+                        : 'border-rule bg-white hover:border-espresso/40'
+                    }`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`font-inter text-[9px] tracking-nav uppercase ${fabric === f.id ? 'text-cream/50' : 'text-text-light'}`}>{f.code}</span>
+                      <span className={`font-inter text-[10px] border px-1.5 py-0.5 ${fabric === f.id ? 'border-cream/30 text-cream' : 'border-rule text-text-muted'}`}>{f.spec}</span>
                     </div>
-                    <p className="font-inter text-xs text-text-light">
-                      {inputMode === 'upload' ? '3D render sent within 24 hours' : '3D preview loading'}
-                    </p>
+                    <p className={`font-cinzel text-sm mb-0.5 ${fabric === f.id ? 'text-cream' : 'text-espresso'}`}>{f.label}</p>
+                    <p className={`font-inter text-xs leading-snug ${fabric === f.id ? 'text-cream/60' : 'text-text-muted'}`}>{f.detail}</p>
+                  </button>
+                ))}
+              </div>
+            </ConfigPanel>
+          )}
+
+          {activePanel === 'colour' && (
+            <ConfigPanel title="Colour" onClose={() => setActivePanel(null)}>
+              <div className="grid grid-cols-5 gap-2.5 mb-5">
+                {COLOURS.map(c => (
+                  <div key={c.hex} className="flex flex-col items-center gap-1">
+                    <button onClick={() => setColour(c.hex)} title={c.label}
+                      className={`w-9 h-9 border-2 transition-all duration-200 ${
+                        colour === c.hex ? 'border-espresso scale-110 shadow-sm' : 'border-rule hover:border-espresso/40'
+                      }`}
+                      style={{ backgroundColor: c.hex }} />
                   </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-3 p-3 border border-rule">
+                <div className="w-8 h-8 border border-rule shrink-0" style={{ backgroundColor: colour }} />
+                <div className="min-w-0">
+                  <p className="font-cinzel text-xs text-espresso truncate">{selectedColour?.label ?? colour}</p>
+                  <p className="font-inter text-[10px] text-text-light">{colour}</p>
+                </div>
+              </div>
+            </ConfigPanel>
+          )}
+
+          {activePanel === 'logo' && (
+            <ConfigPanel title="Logo & Placement" onClose={() => setActivePanel(null)}>
+              <div className="mb-5">
+                {logoFile ? (
+                  <div className="flex items-center gap-3 p-3 border border-accent-warm/40 bg-accent-warm/5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={logoUrl} alt="logo preview" className="w-11 h-11 object-contain border border-rule bg-white p-1 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-inter text-xs text-espresso truncate">{logoFile.name}</p>
+                      <p className="font-inter text-[10px] text-text-muted mt-0.5">{(logoFile.size / 1024).toFixed(0)} KB</p>
+                    </div>
+                    <button onClick={clearLogo} aria-label="Remove logo" className="text-text-muted hover:text-red-500 transition-colors shrink-0">
+                      <X size={14} strokeWidth={1.5} />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="relative flex flex-col items-center justify-center gap-2.5 p-6 border-2 border-dashed border-rule hover:border-accent-warm/50 bg-white cursor-pointer transition-all duration-200">
+                    <input type="file" accept=".png,.jpg,.jpeg,.svg,.webp" onChange={handleLogoInput} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                    <Upload className="w-5 h-5 text-text-light" strokeWidth={1.5} />
+                    <div className="text-center">
+                      <p className="font-inter text-xs text-espresso mb-1">Upload your graphic</p>
+                      <p className="font-inter text-[9px] tracking-nav text-text-light uppercase">PNG · SVG · JPG · WEBP</p>
+                    </div>
+                  </label>
                 )}
               </div>
 
-              {/* Config state strip */}
-              <div className="border-t border-rule px-5 py-4 bg-cream/60">
-                <p className="font-inter text-[9px] tracking-nav text-text-light uppercase mb-3">Configuration</p>
-                <div className="grid grid-cols-3 gap-x-4 gap-y-2">
-                  {[
-                    ['Garment',    selectedGarment?.label ?? garment],
-                    ['Fabric',     selectedFabric?.label  ?? fabric],
-                    ['Colour',     selectedColour?.label  ?? colour],
-                    ['Placement',  PLACEMENTS.find(p => p.id === placement)?.label ?? placement],
-                    ['Quantity',   String(qty)],
-                    ['Per unit',   `£${ppu.toFixed(2)}`],
-                  ].map(([key, val]) => (
-                    <div key={key}>
-                      <p className="font-inter text-[8px] tracking-nav text-text-light uppercase">{key}</p>
-                      <p className="font-inter text-xs text-espresso truncate">{val}</p>
+              <p className="font-inter text-[9px] tracking-nav text-text-light uppercase mb-2.5">Placement</p>
+              <div className="space-y-2.5">
+                {PLACEMENTS.map(p => (
+                  <label key={p.id}
+                    className={`flex items-center gap-3 p-3 border cursor-pointer transition-all duration-200 ${
+                      placement === p.id ? 'border-espresso bg-espresso text-cream' : 'border-rule bg-white hover:border-espresso/40'
+                    }`}>
+                    <input type="radio" name="placement" value={p.id} checked={placement === p.id}
+                      onChange={() => setPlacement(p.id)} className="sr-only" />
+                    <div className={`w-3.5 h-3.5 border shrink-0 flex items-center justify-center transition-colors ${
+                      placement === p.id ? 'border-cream/40' : 'border-rule'
+                    }`}>
+                      {placement === p.id && <div className="w-1.5 h-1.5 bg-cream" />}
                     </div>
-                  ))}
+                    <div>
+                      <p className={`font-cinzel text-xs ${placement === p.id ? 'text-cream' : 'text-espresso'}`}>{p.label}</p>
+                      <p className={`font-inter text-[10px] mt-0.5 ${placement === p.id ? 'text-cream/60' : 'text-text-muted'}`}>{p.note}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </ConfigPanel>
+          )}
+
+          {activePanel === 'quantity' && (
+            <ConfigPanel title="Quantity & Pricing" onClose={() => setActivePanel(null)}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setQty(q => Math.max(50, q - 10))} aria-label="Decrease quantity"
+                    className="w-6 h-6 border border-rule flex items-center justify-center hover:border-espresso transition-colors">
+                    <Minus size={11} strokeWidth={1.5} />
+                  </button>
+                  <div className="text-center w-14">
+                    <p className="font-cinzel text-xl text-espresso leading-none">{qty}</p>
+                    <p className="font-inter text-[8px] text-text-light uppercase tracking-nav">units</p>
+                  </div>
+                  <button onClick={() => setQty(q => Math.min(1000, q + 10))} aria-label="Increase quantity"
+                    className="w-6 h-6 border border-rule flex items-center justify-center hover:border-espresso transition-colors">
+                    <Plus size={11} strokeWidth={1.5} />
+                  </button>
+                </div>
+                <div className="text-right">
+                  <p className="font-cinzel text-xl text-accent-warm leading-none">£{ppu.toFixed(2)}</p>
+                  <p className="font-inter text-[8px] text-text-light uppercase tracking-nav">per unit</p>
                 </div>
               </div>
-            </div>
 
-            {/* CTA */}
-            <Link
-              href={(() => {
-                const selGarment = GARMENT_TYPES.find(g => g.id === garment);
-                const selFabric  = FABRICS.find(f => f.id === fabric);
-                const selColour  = COLOURS.find(c => c.hex === colour);
-                const selPlace   = PLACEMENTS.find(p => p.id === placement);
-                const productType = garment === 'hoodie' ? 'Hoodies' : 'T-Shirts';
-                const qtyMap: Record<string, string> = { '50': '50–99', '100': '100–249', '200': '250–499', '500': '500–999', '1000': '1,000+' };
-                const qtyRange = qty >= 1000 ? '1,000+' : qty >= 500 ? '500–999' : qty >= 250 ? '250–499' : qty >= 100 ? '100–249' : '50–99';
-                const details = `Custom configuration: ${selGarment?.label ?? garment}, Fabric: ${selFabric?.label ?? fabric} (${selFabric?.spec ?? ''}), Colour: ${selColour?.label ?? colour}, Logo: ${selPlace?.label ?? placement}, Qty: ${qty} units, Est. total: £${(pricePerUnit(qty) * qty).toFixed(2)}`;
-                const params = new URLSearchParams({ productType, qtyRange, details });
-                return `/quote?${params.toString()}`;
-              })()}
-              className="mt-4 flex items-center justify-center gap-2 bg-espresso text-cream font-inter text-xs tracking-button uppercase py-4 hover:bg-accent-warm transition-colors duration-200">
-              Request a Quote <ArrowRight size={13} strokeWidth={1.5} />
-            </Link>
-            <p className="text-center font-inter text-[10px] text-text-light mt-3">
-              No commitment required · Response within 24 hours
-            </p>
+              <input
+                type="range" min={50} max={1000} step={10}
+                value={qty} onChange={e => setQty(Number(e.target.value))}
+                className="w-full h-0.5 bg-rule appearance-none cursor-pointer mb-5"
+                style={{ accentColor: '#1B3D2A' }}
+              />
+
+              <button onClick={() => setShowBreakdown(v => !v)}
+                className="flex items-center justify-between w-full font-inter text-[10px] tracking-nav text-text-muted hover:text-espresso uppercase transition-colors mb-3 pb-3 border-b border-rule-light">
+                Full breakdown {showBreakdown ? <ChevronUp size={12} strokeWidth={1.5} /> : <ChevronDown size={12} strokeWidth={1.5} />}
+              </button>
+
+              {showBreakdown && (
+                <div className="mb-5">
+                  {[
+                    [`${qty} × £${ppu.toFixed(2)} per unit`, `£${totalGBP}`],
+                    ['UK Import Duty', '£0.00 — DFQF'],
+                    ['Est. shipping (air freight)', 'TBC on quote'],
+                  ].map(([label, val]) => (
+                    <div key={label} className="flex items-center justify-between py-2 border-b border-rule-light last:border-0">
+                      <span className="font-inter text-[11px] text-text-muted">{label}</span>
+                      <span className="font-inter text-[11px] text-espresso font-medium">{val}</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between px-3 py-2.5 mt-2 bg-espresso">
+                    <span className="font-cinzel text-xs text-cream">Estimated Total</span>
+                    <span className="font-cinzel text-sm text-accent-warm">£{totalGBP}</span>
+                  </div>
+
+                  <p className="font-inter text-[9px] tracking-nav text-text-light uppercase mt-4 mb-2">Volume tiers</p>
+                  <div className="grid grid-cols-5 gap-px bg-rule">
+                    {VOLUME_TIERS.map(([units, price]) => (
+                      <div key={units} className={`p-1.5 text-center ${qty >= units ? 'bg-espresso' : 'bg-white'}`}>
+                        <p className={`font-inter text-[7px] uppercase mb-0.5 ${qty >= units ? 'text-cream/50' : 'text-text-light'}`}>{units}+</p>
+                        <p className={`font-cinzel text-[10px] ${qty >= units ? 'text-accent-warm' : 'text-text-muted'}`}>£{price.toFixed(2)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!showBreakdown && (
+                <div className="flex items-center justify-between px-3 py-2.5 bg-espresso mb-1">
+                  <span className="font-cinzel text-xs text-cream">Estimated Total</span>
+                  <span className="font-cinzel text-sm text-accent-warm">£{totalGBP}</span>
+                </div>
+              )}
+            </ConfigPanel>
+          )}
+
+          {showCollection && (
+            <ConfigPanel
+              title={`Collection${collection.length ? ` (${collection.length})` : ''}`}
+              onClose={() => setShowCollection(false)}
+              side="right"
+              headerAction={
+                <button onClick={addToCollection} title="Save current design" aria-label="Save current design"
+                  className="text-text-muted hover:text-accent-warm transition-colors">
+                  <Plus size={15} strokeWidth={1.5} />
+                </button>
+              }
+            >
+              {collection.length === 0 ? (
+                <p className="font-inter text-xs text-text-muted leading-relaxed">
+                  No saved designs yet. Configure a garment and tap <Plus size={10} strokeWidth={2} className="inline -mt-0.5" /> to save it here.
+                </p>
+              ) : (
+                <div className="space-y-2.5">
+                  {collection.map(entry => {
+                    const g = GARMENT_TYPES.find(x => x.id === entry.garment);
+                    const f = FABRICS.find(x => x.id === entry.fabric);
+                    const c = COLOURS.find(x => x.hex === entry.colour);
+                    return (
+                      <div key={entry.id} className="flex items-center gap-3 border border-rule p-2.5">
+                        <div className="relative w-11 h-11 border border-rule shrink-0 overflow-hidden" style={{ backgroundColor: entry.colour }}>
+                          {entry.logoPreviewUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={entry.logoPreviewUrl} alt="" className="absolute inset-0 w-full h-full object-contain p-1" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-cinzel text-xs text-espresso truncate">{g?.label ?? entry.garment}</p>
+                          <p className="font-inter text-[10px] text-text-muted truncate">{f?.label ?? entry.fabric} · {c?.label ?? entry.colour} · {entry.qty}u</p>
+                        </div>
+                        <button onClick={() => removeFromCollection(entry.id)} aria-label="Remove from collection"
+                          className="text-text-muted hover:text-red-500 transition-colors shrink-0">
+                          <Trash2 size={14} strokeWidth={1.5} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </ConfigPanel>
+          )}
+
+          {/* ── Floating dock ── */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
+            <div className="flex items-center gap-1 bg-espresso rounded-2xl px-2 py-2 shadow-xl">
+              {DOCK_ITEMS.map(({ id, label, icon: Icon }) => (
+                <button key={id} onClick={() => togglePanel(id)} title={label} aria-label={label}
+                  aria-pressed={activePanel === id}
+                  className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors duration-150 ${
+                    activePanel === id ? 'bg-accent-warm text-cream' : 'text-cream/70 hover:bg-cream/10 hover:text-cream'
+                  }`}>
+                  <Icon size={17} strokeWidth={1.5} />
+                </button>
+              ))}
+
+              <div className="w-px h-6 bg-cream/15 mx-1.5" />
+
+              <button onClick={addToCollection} title="Add to collection" aria-label="Add to collection"
+                aria-pressed={showCollection}
+                className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors duration-150 ${
+                  showCollection ? 'bg-accent-warm text-cream' : 'text-cream/70 hover:bg-cream/10 hover:text-cream'
+                }`}>
+                <BookmarkPlus size={17} strokeWidth={1.5} />
+              </button>
+
+              <div className="w-px h-6 bg-cream/15 mx-1.5" />
+
+              <Link href={quoteHref} title="Request a Quote"
+                className="flex items-center gap-1.5 h-10 pl-4 pr-3.5 rounded-lg bg-accent-warm text-cream font-inter text-[11px] tracking-nav uppercase hover:bg-accent-warm/90 transition-colors duration-150 whitespace-nowrap">
+                Quote <ArrowRight size={13} strokeWidth={1.5} />
+              </Link>
+            </div>
           </div>
 
         </div>

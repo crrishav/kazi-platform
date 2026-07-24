@@ -1,6 +1,7 @@
 'use client';
 
 import Navigation from '@/components/Navigation';
+import Footer from '@/components/Footer';
 import Link from 'next/link';
 import { useSmoothScroll } from '@/hooks/useSmoothScroll';
 
@@ -63,28 +64,8 @@ export default function ServicesPage() {
     <main className="min-h-screen bg-white">
       <Navigation />
 
-      {/* Hero */}
-      <section className="pt-48 pb-16 px-6 border-b border-rule">
-        <div className="max-w-5xl mx-auto">
-          <p className="font-inter text-xs tracking-nav text-text-muted uppercase mb-4">What we do</p>
-          <h1 className="font-cinzel text-4xl md:text-5xl text-espresso mb-5 leading-tight max-w-2xl">
-            Services Built for Ambitious Brands
-          </h1>
-          <p className="font-inter text-text-muted text-base max-w-xl leading-relaxed mb-8">
-            From 50 to 50,000 units — sustainable manufacturing, precision printing, and artisan embroidery.
-            Every process is certified, traceable, and built to last.
-          </p>
-          <Link
-            href="/quote"
-            className="inline-flex items-center gap-2 bg-espresso text-cream font-inter text-xs tracking-button uppercase px-6 py-3 hover:bg-accent-warm transition-colors duration-200"
-          >
-            Get a Quote
-          </Link>
-        </div>
-      </section>
-
       {/* Services */}
-      <section className="py-16 px-6">
+      <section className="pt-48 pb-16 px-6">
         <div className="max-w-5xl mx-auto space-y-0">
           {SERVICES.map((svc, i) => (
             <div
@@ -148,6 +129,7 @@ export default function ServicesPage() {
           </div>
         </div>
       </section>
+      <Footer />
     </main>
   );
 }

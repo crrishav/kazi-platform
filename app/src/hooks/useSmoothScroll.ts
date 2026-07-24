@@ -17,6 +17,7 @@ export function useSmoothScroll() {
     });
 
     lenisRef.current = lenis;
+    lenis.scrollTo(0, { immediate: true });
 
     lenis.on("scroll", ScrollTrigger.update);
 

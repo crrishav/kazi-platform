@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Mail } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Navigation from '@/components/Navigation';
+import Footer from '@/components/Footer';
 import { useSmoothScroll } from '@/hooks/useSmoothScroll';
 
 export default function ForgotPasswordPage() {
@@ -37,7 +38,7 @@ export default function ForgotPasswordPage() {
     return (
       <>
         <Navigation />
-        <main className="h-screen overflow-hidden bg-white flex items-center justify-center px-6 pt-28 pb-3">
+        <main className="min-h-screen bg-white flex items-center justify-center px-6 pt-28 pb-3">
           <div className="w-full max-w-md text-center">
             <div className="flex justify-center mb-4">
               <div className="w-14 h-14 border border-rule-light flex items-center justify-center">
@@ -57,6 +58,7 @@ export default function ForgotPasswordPage() {
             </Link>
           </div>
         </main>
+        <Footer />
       </>
     );
   }
@@ -64,7 +66,7 @@ export default function ForgotPasswordPage() {
   return (
     <>
       <Navigation />
-      <main className="h-screen overflow-hidden bg-white flex items-center justify-center px-6 pt-28 pb-3">
+      <main className="min-h-screen bg-white flex items-center justify-center px-6 pt-28 pb-3">
       <div className="w-full max-w-md">
 
         {/* Brand */}
@@ -136,6 +138,7 @@ export default function ForgotPasswordPage() {
         </div>
       </div>
       </main>
+      <Footer />
     </>
   );
 }

@@ -3,20 +3,16 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import ColorSwatch from "./ColorSwatch";
 
 interface ProductCardProps {
   name: string;
   price: string;
   image: string;
-  colors?: { name: string; hex: string }[];
-  badge?: string;
   index: number;
   href?: string;
 }
 
-export default function ProductCard({ name, price, image, colors, badge, index, href }: ProductCardProps) {
-  const [selectedColor, setSelectedColor] = useState(0);
+export default function ProductCard({ name, price, image, index, href }: ProductCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
 
   const Wrapper = href ? Link : 'div' as any;
@@ -46,35 +42,6 @@ export default function ProductCard({ name, price, image, colors, badge, index, 
           onLoad={() => setImageLoaded(true)}
           sizes="(max-width: 768px) 50vw, 25vw"
         />
-
-        {/* Badge */}
-        {badge && (
-          <div
-            className="absolute"
-            style={{
-              top: "12px",
-              left: "12px",
-              padding: "4px 10px",
-              border: "1px solid #7A9B82",
-              borderRadius: "999px",
-              zIndex: 2,
-            }}
-          >
-            <span
-              style={{
-                fontFamily: "'Inter', sans-serif",
-                fontSize: "10px",
-                fontWeight: 400,
-                letterSpacing: "0.15em",
-                lineHeight: 1.4,
-                color: "#1A1A1A",
-                textTransform: "uppercase",
-              }}
-            >
-              {badge}
-            </span>
-          </div>
-        )}
 
         {/* Quick View Label */}
         <div
@@ -128,17 +95,6 @@ export default function ProductCard({ name, price, image, colors, badge, index, 
         >
           {price}
         </p>
-
-        {/* Color Swatches */}
-        {colors && colors.length > 0 && (
-          <div className="flex justify-center">
-            <ColorSwatch
-              colors={colors}
-              selectedIndex={selectedColor}
-              onSelect={setSelectedColor}
-            />
-          </div>
-        )}
       </div>
     </Wrapper>
   );

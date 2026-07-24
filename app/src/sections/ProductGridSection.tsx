@@ -15,13 +15,6 @@ const products = [
     price: "From US$ 8.50 / piece",
     image: "/images/organic-tee.jpg",
     garment: "t-shirt",
-    colors: [
-      { name: "Forest Green", hex: "#1B3D2A" },
-      { name: "Sage", hex: "#8FA89B" },
-      { name: "Bone White", hex: "#EBF3EC" },
-      { name: "Charcoal", hex: "#3A3A3A" },
-    ],
-    badge: undefined,
   },
   {
     name: "DROPSHOULDER TEE",
@@ -29,13 +22,6 @@ const products = [
     price: "From US$ 12.00 / piece",
     image: "/images/dropshoulder-tee.jpg",
     garment: "t-shirt",
-    colors: [
-      { name: "Deep Green", hex: "#1B3D2A" },
-      { name: "Olive", hex: "#6B6B4E" },
-      { name: "Navy", hex: "#1A2744" },
-      { name: "Off-White", hex: "#EBF3EC" },
-    ],
-    badge: undefined,
   },
   {
     name: "PREMIUM HOODIE",
@@ -43,8 +29,6 @@ const products = [
     price: "From US$ 18.00 / piece",
     image: "/images/premium-hoodie.jpg",
     garment: "hoodie",
-    colors: undefined,
-    badge: "BESTSELLER",
   },
   {
     name: "DESIGN YOUR OWN",
@@ -52,19 +36,12 @@ const products = [
     price: "Bespoke Production",
     image: "/images/custom-tailoring.png",
     garment: "t-shirt",
-    colors: [
-      { name: "White", hex: "#FFFFFF" },
-      { name: "Cream", hex: "#F5F3EE" },
-      { name: "Oat", hex: "#E8E0D0" },
-      { name: "Black", hex: "#1A1A1A" },
-    ],
-    badge: "CUSTOM TAILORING",
   },
 ];
 
 export default function ProductGridSection() {
   const sectionRef = useRef<HTMLDivElement>(null);
-  const headerRef = useRef<HTMLHeadingElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -123,28 +100,33 @@ export default function ProductGridSection() {
     >
       <div className="container-pad" style={{ maxWidth: 1200, margin: "0 auto" }}>
         {/* Section Header */}
-        <h2
-          ref={headerRef}
-          className="text-center"
-          style={{
-            fontFamily: "'Cinzel', serif",
-            fontSize: "11px",
-            fontWeight: 400,
-            letterSpacing: "0.35em",
-            lineHeight: 1.4,
-            color: "#1A1A1A",
-            textTransform: "uppercase",
-            marginBottom: "48px",
-            opacity: 0,
-          }}
-        >
-          Signature Styles
-        </h2>
+        <div ref={headerRef} className="text-center" style={{ opacity: 0, marginBottom: "64px" }}>
+          <h2
+            style={{
+              fontFamily: "'Cinzel', serif",
+              fontSize: "28px",
+              fontWeight: 400,
+              letterSpacing: "0.08em",
+              lineHeight: 1.3,
+              color: "#1A1A1A",
+            }}
+          >
+            Signature Styles
+          </h2>
+          <div
+            style={{
+              width: "40px",
+              height: "1px",
+              backgroundColor: "#C2D6C6",
+              margin: "24px auto 0",
+            }}
+          />
+        </div>
 
         {/* Product Grid */}
         <div
           ref={gridRef}
-          className="grid grid-cols-2 lg:grid-cols-4"
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
           style={{ gap: "24px" }}
         >
           {products.map((product, index) => (
@@ -153,8 +135,6 @@ export default function ProductGridSection() {
               name={product.name}
               price={product.price}
               image={product.image}
-              colors={product.colors}
-              badge={product.badge}
               index={index}
               href={`/products/${product.slug}`}
             />
@@ -163,7 +143,7 @@ export default function ProductGridSection() {
 
         {/* CTA Button */}
         <div className="flex justify-center" style={{ marginTop: "48px" }}>
-          <GhostButton href="/configure">Explore the Atelier</GhostButton>
+          <GhostButton href="/configure">Design Your Garment</GhostButton>
         </div>
       </div>
     </section>

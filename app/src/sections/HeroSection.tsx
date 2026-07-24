@@ -1,15 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import gsap from "gsap";
 import HeroParticles from "@/components/HeroParticles";
 
 export default function HeroSection() {
   const heroRef  = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLDivElement>(null);
-  const titleRef = useRef<HTMLHeadingElement>(null);
-  const subRef   = useRef<HTMLParagraphElement>(null);
-  const ctaRef   = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
     const tl = gsap.timeline({ delay: 0.3 });
@@ -17,21 +15,6 @@ export default function HeroSection() {
     tl.fromTo(imageRef.current,
       { opacity: 0 },
       { opacity: 1, duration: 1.4, ease: "power2.out" }
-    );
-    tl.fromTo(titleRef.current,
-      { opacity: 0, y: 24 },
-      { opacity: 1, y: 0, duration: 0.9, ease: "power3.out" },
-      0.55
-    );
-    tl.fromTo(subRef.current,
-      { opacity: 0, y: 16 },
-      { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" },
-      0.85
-    );
-    tl.fromTo(ctaRef.current,
-      { opacity: 0, y: 14 },
-      { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" },
-      1.1
     );
 
     return () => { tl.kill(); };
@@ -67,103 +50,17 @@ export default function HeroSection() {
         }}
       />
 
-      {/* Hero Content — vertically centered */}
+      {/* Bottom-right CTA */}
       <div
-        className="absolute left-1/2 flex flex-col items-center"
-        style={{
-          top: "50%",
-          transform: "translate(-50%, -50%)",
-          zIndex: 4,
-          width: "100%",
-          padding: "0 24px",
-          textAlign: "center",
-        }}
-      >
-        {/* Heading */}
-        <h1
-          ref={titleRef}
-          style={{
-            opacity: 0,
-            fontFamily: "'Inter', sans-serif",
-            fontSize: "clamp(28px, 3.2vw, 52px)",
-            fontWeight: 700,
-            letterSpacing: "-0.02em",
-            lineHeight: 1.12,
-            color: "#ffffff",
-            marginBottom: "16px",
-            maxWidth: "640px",
-            textShadow: "0 2px 20px rgba(0,0,0,0.22)",
-          }}
-        >
-          Built for Your Brand. Crafted in Nepal.
-        </h1>
-
-        {/* Subtitle */}
-        <p
-          ref={subRef}
-          style={{
-            opacity: 0,
-            fontFamily: "'Inter', sans-serif",
-            fontSize: "clamp(14px, 1.4vw, 17px)",
-            fontWeight: 400,
-            letterSpacing: "0.01em",
-            lineHeight: 1.65,
-            color: "rgba(255,255,255,0.76)",
-            maxWidth: "480px",
-            marginBottom: "36px",
-          }}
-        >
-          Custom apparel from Kathmandu for UK clothing brands.
-          <br />0% import duty. MOQ from 50 units.
-        </p>
-
-        {/* CTA */}
-        <a
-          ref={ctaRef}
-          href="/quote"
-          style={{
-            opacity: 0,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "10px",
-            fontFamily: "'Inter', sans-serif",
-            fontSize: "12px",
-            fontWeight: 500,
-            letterSpacing: "0.08em",
-            color: "#1B3D2A",
-            backgroundColor: "#ffffff",
-            padding: "13px 28px",
-            borderRadius: "100px",
-            textDecoration: "none",
-            boxShadow: "0 2px 16px rgba(0,0,0,0.18)",
-            transition: "transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease",
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow = "0 6px 24px rgba(0,0,0,0.28)";
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "0 2px 16px rgba(0,0,0,0.18)";
-          }}
-        >
-          Get a Quote
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transition: "transform 0.2s ease" }}>
-            <path d="M1 11L11 1M11 1H4M11 1V8" stroke="#1B3D2A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </a>
-      </div>
-
-      {/* Scroll Indicator */}
-      <div
-        className="absolute hidden md:flex flex-col items-center"
+        className="absolute hidden md:block"
         style={{ right: "48px", bottom: "48px", zIndex: 5 }}
       >
-        <div style={{ width: "1px", height: "40px", backgroundColor: "rgba(255,255,255,0.3)" }} />
-        <div
-          className="scroll-bounce rounded-full"
-          style={{ width: "5px", height: "5px", backgroundColor: "rgba(255,255,255,0.4)", marginTop: "6px" }}
-        />
+        <Link
+          href="/quote"
+          className="font-inter text-xs tracking-button uppercase bg-white text-espresso border border-white/40 px-6 py-3.5 hover:bg-transparent hover:text-white transition-colors duration-200"
+        >
+          Request a Quote →
+        </Link>
       </div>
     </section>
   );

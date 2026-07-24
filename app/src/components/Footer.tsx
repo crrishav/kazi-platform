@@ -12,16 +12,16 @@ gsap.registerPlugin(ScrollTrigger);
 
 const workLinks = [
   { label: "Request a Sample",       href: "/quote" },
-  { label: "Design Your Collection", href: "/configure" },
+  { label: "Design Your Garment",    href: "/configure" },
   { label: "Pricing",                href: "/pricing" },
-  { label: "Our Process",            href: "/services" },
+  { label: "Our Services",           href: "/services" },
   { label: "Partner Programme",      href: "/quote" },
   { label: "FAQs",                   href: "/quote" },
 ];
 
 const aboutLinks = [
-  { label: "Enquire",        href: "/quote" },
-  { label: "Our Heritage",   href: "/services" },
+  { label: "Request a Quote", href: "/quote" },
+  { label: "Our Services",   href: "/services" },
   { label: "Sustainability", href: "#" },
   { label: "Certifications", href: "#" },
   { label: "Press",          href: "#" },

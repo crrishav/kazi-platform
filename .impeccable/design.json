@@ -1,0 +1,262 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-24T14:06:41.330Z",
+  "title": "Design System: Kazi Manufacturing",
+  "extensions": {
+    "colorMeta": {
+      "forest-ledger": {
+        "role": "primary",
+        "displayName": "Forest Ledger",
+        "canonical": "oklch(31% 0.05 152)",
+        "tonalRamp": [
+          "oklch(15% 0.035 152)",
+          "oklch(22% 0.045 152)",
+          "oklch(31% 0.05 152)",
+          "oklch(40% 0.06 152)",
+          "oklch(52% 0.075 152)",
+          "oklch(66% 0.08 152)",
+          "oklch(82% 0.05 152)",
+          "oklch(95% 0.015 152)"
+        ]
+      },
+      "highland-moss": {
+        "role": "secondary",
+        "displayName": "Highland Moss",
+        "canonical": "oklch(50% 0.1 150)",
+        "tonalRamp": [
+          "oklch(18% 0.06 150)",
+          "oklch(27% 0.08 150)",
+          "oklch(37% 0.095 150)",
+          "oklch(50% 0.1 150)",
+          "oklch(62% 0.1 150)",
+          "oklch(74% 0.09 150)",
+          "oklch(86% 0.05 150)",
+          "oklch(95% 0.02 150)"
+        ]
+      },
+      "sage-mist": {
+        "role": "neutral",
+        "displayName": "Sage Mist",
+        "canonical": "oklch(95% 0.015 155)",
+        "tonalRamp": [
+          "oklch(20% 0.02 155)",
+          "oklch(32% 0.02 155)",
+          "oklch(45% 0.02 155)",
+          "oklch(60% 0.018 155)",
+          "oklch(75% 0.016 155)",
+          "oklch(87% 0.015 155)",
+          "oklch(95% 0.015 155)",
+          "oklch(99% 0.005 155)"
+        ]
+      },
+      "paper-white": {
+        "role": "neutral",
+        "displayName": "Paper White",
+        "canonical": "oklch(100% 0 0)",
+        "tonalRamp": [
+          "oklch(20% 0 0)",
+          "oklch(35% 0 0)",
+          "oklch(50% 0 0)",
+          "oklch(65% 0 0)",
+          "oklch(80% 0 0)",
+          "oklch(90% 0 0)",
+          "oklch(97% 0 0)",
+          "oklch(100% 0 0)"
+        ]
+      },
+      "text-primary": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(20% 0 0)",
+        "tonalRamp": [
+          "oklch(10% 0 0)",
+          "oklch(20% 0 0)",
+          "oklch(32% 0 0)",
+          "oklch(45% 0 0)",
+          "oklch(60% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(88% 0 0)",
+          "oklch(96% 0 0)"
+        ]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Muted Sage",
+        "canonical": "oklch(45% 0.045 150)",
+        "tonalRamp": [
+          "oklch(18% 0.03 150)",
+          "oklch(28% 0.035 150)",
+          "oklch(38% 0.04 150)",
+          "oklch(45% 0.045 150)",
+          "oklch(58% 0.04 150)",
+          "oklch(72% 0.03 150)",
+          "oklch(85% 0.02 150)",
+          "oklch(95% 0.01 150)"
+        ]
+      },
+      "text-light": {
+        "role": "neutral",
+        "displayName": "Faint Sage",
+        "canonical": "oklch(64% 0.055 150)",
+        "tonalRamp": [
+          "oklch(25% 0.035 150)",
+          "oklch(38% 0.045 150)",
+          "oklch(51% 0.05 150)",
+          "oklch(64% 0.055 150)",
+          "oklch(74% 0.045 150)",
+          "oklch(84% 0.03 150)",
+          "oklch(92% 0.018 150)",
+          "oklch(97% 0.008 150)"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "oklch(85% 0.025 150)",
+        "tonalRamp": [
+          "oklch(30% 0.02 150)",
+          "oklch(45% 0.022 150)",
+          "oklch(60% 0.024 150)",
+          "oklch(72% 0.025 150)",
+          "oklch(85% 0.025 150)",
+          "oklch(90% 0.02 150)",
+          "oklch(95% 0.012 150)",
+          "oklch(98% 0.005 150)"
+        ]
+      },
+      "rule-light": {
+        "role": "neutral",
+        "displayName": "Rule Light",
+        "canonical": "oklch(90% 0.018 150)",
+        "tonalRamp": [
+          "oklch(35% 0.015 150)",
+          "oklch(50% 0.017 150)",
+          "oklch(65% 0.018 150)",
+          "oklch(78% 0.018 150)",
+          "oklch(90% 0.018 150)",
+          "oklch(94% 0.014 150)",
+          "oklch(97% 0.008 150)",
+          "oklch(99% 0.003 150)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page-level H1 headlines only (Cinzel)." },
+      "headline": { "displayName": "Headline", "purpose": "Section H2 headers (Cinzel)." },
+      "eyebrow": { "displayName": "Eyebrow", "purpose": "Widest-tracked micro-label above a headline (Cinzel)." },
+      "body": { "displayName": "Body", "purpose": "Default paragraph and UI copy (Inter)." },
+      "editorial": { "displayName": "Editorial", "purpose": "Longer narrative/storytelling passages only (Newsreader)." },
+      "label": { "displayName": "Label", "purpose": "Buttons, form labels, footer headers, badges (Inter, uppercase, tracked)." }
+    },
+    "shadows": [
+      { "name": "overlay", "value": "0 4px 24px rgba(0,0,0,0.07)", "purpose": "Reserved for true floating overlays: the navigation mega-menu, cart drawer, modals. Never used on resting cards or buttons." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.25, 0.46, 0.45, 0.94)", "purpose": "Default easing for hover transforms and image scale (nav underline, product image zoom)." },
+      { "name": "duration-quick", "value": "0.2s", "purpose": "Icon/opacity hover transitions." },
+      { "name": "duration-standard", "value": "0.3s", "purpose": "Color and border transitions on buttons, links, inputs." },
+      { "name": "duration-media", "value": "0.5s", "purpose": "Image scale/opacity transitions on product cards." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Default solid CTA — Forest Ledger fill, Sage Mist label, square corners.",
+      "html": "<button class=\"ds-btn-primary\">Get a Quote</button>",
+      "css": ".ds-btn-primary { background: var(--color-bg-espresso, #1B3D2A); color: var(--color-bg-cream, #EBF3EC); font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; padding: 12px 24px; border: none; border-radius: 0; cursor: pointer; transition: background-color 0.3s ease; } .ds-btn-primary:hover, .ds-btn-primary:focus-visible { background: var(--color-accent-warm, #3A7D44); } .ds-btn-primary:focus-visible { outline: 2px solid var(--color-accent-warm, #3A7D44); outline-offset: 2px; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary CTA — transparent with a 1px Forest Ledger border, fills solid on hover.",
+      "html": "<button class=\"ds-btn-outline\">Configure a Garment</button>",
+      "css": ".ds-btn-outline { background: transparent; color: var(--color-bg-espresso, #1B3D2A); border: 1px solid var(--color-bg-espresso, #1B3D2A); font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 400; letter-spacing: 0.15em; text-transform: uppercase; padding: 10px 20px; border-radius: 0; cursor: pointer; transition: background-color 0.2s ease, color 0.2s ease; } .ds-btn-outline:hover, .ds-btn-outline:focus-visible { background: var(--color-bg-espresso, #1B3D2A); color: var(--color-bg-cream, #EBF3EC); } .ds-btn-outline:focus-visible { outline: 2px solid var(--color-accent-warm, #3A7D44); outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Airy outline CTA for hero/footer contexts over photography or dark backgrounds; wider padding than the other two.",
+      "html": "<button class=\"ds-btn-ghost\">Get a Quote</button>",
+      "css": ".ds-btn-ghost { background: transparent; color: var(--color-text-primary, #1A1A1A); border: 1px solid var(--color-text-primary, #1A1A1A); font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 400; letter-spacing: 0.15em; text-transform: uppercase; padding: 14px 48px; border-radius: 0; cursor: pointer; transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease; } .ds-btn-ghost:hover, .ds-btn-ghost:focus-visible { background: var(--color-text-primary, #1A1A1A); color: var(--color-bg-cream, #EBF3EC); } .ds-btn-ghost:focus-visible { outline: 2px solid var(--color-accent-warm, #3A7D44); outline-offset: 2px; }"
+    },
+    {
+      "name": "Tag Badge",
+      "kind": "chip",
+      "refersTo": "tag-badge",
+      "description": "Small pill badge for product tags/status — the narrow exception to the system's square-corner default.",
+      "html": "<span class=\"ds-badge\">New</span>",
+      "css": ".ds-badge { display: inline-block; padding: 4px 10px; border: 1px solid var(--color-text-light, #7A9B82); border-radius: 999px; font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 400; letter-spacing: 0.15em; line-height: 1.4; text-transform: uppercase; color: var(--color-text-primary, #1A1A1A); }"
+    },
+    {
+      "name": "Product Card",
+      "kind": "card",
+      "refersTo": "product-card",
+      "description": "Retail collection card — square image container with hover zoom, centered Inter name/price beneath.",
+      "html": "<a class=\"ds-product-card\" href=\"#\"><div class=\"ds-product-card__image\"><img src=\"https://placehold.co/300x400\" alt=\"\" /></div><div class=\"ds-product-card__info\"><h3 class=\"ds-product-card__name\">Kathmandu Field Shirt</h3><p class=\"ds-product-card__price\">From £75</p></div></a>",
+      "css": ".ds-product-card { display: block; text-decoration: none; cursor: pointer; } .ds-product-card__image { position: relative; overflow: hidden; background: var(--color-rule-light, #D6E6D8); aspect-ratio: 3/4; } .ds-product-card__image img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94); } .ds-product-card:hover .ds-product-card__image img { transform: scale(1.03); } .ds-product-card__info { margin-top: 16px; text-align: center; } .ds-product-card__name { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 400; letter-spacing: 0.12em; line-height: 1.4; color: var(--color-text-primary, #1A1A1A); text-transform: uppercase; } .ds-product-card__price { margin-top: 4px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 400; letter-spacing: 0.02em; line-height: 1.4; color: var(--color-text-muted, #4D6B55); }"
+    },
+    {
+      "name": "Boxed Input",
+      "kind": "input",
+      "refersTo": "input-boxed",
+      "description": "Multi-field form input (e.g. /quote) — full 1px border box, focus swaps border to Highland Moss.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field__label\">Full Name</span><input class=\"ds-field__input\" type=\"text\" /></label>",
+      "css": ".ds-field__label { display: block; margin-bottom: 6px; font-family: 'Inter', sans-serif; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-text-muted, #4D6B55); } .ds-field__input { width: 100%; padding: 12px 16px; border: 1px solid var(--color-rule, #C2D6C6); background: var(--color-bg-white, #FFFFFF); font-family: 'Inter', sans-serif; font-size: 14px; color: var(--color-text-primary, #1A1A1A); border-radius: 0; transition: border-color 0.2s ease; } .ds-field__input:focus { outline: none; border-color: var(--color-accent-warm, #3A7D44); }"
+    },
+    {
+      "name": "Underline Input",
+      "kind": "input",
+      "refersTo": "input-underline",
+      "description": "Single-field low-commitment input (newsletter signup) — border-bottom only, no box.",
+      "html": "<div class=\"ds-underline-field\"><input class=\"ds-underline-field__input\" type=\"email\" placeholder=\"Email\" /><button class=\"ds-underline-field__submit\" aria-label=\"Subscribe\">→</button></div>",
+      "css": ".ds-underline-field { display: flex; align-items: center; border-bottom: 1px solid var(--color-rule, #C2D6C6); transition: border-color 0.3s ease; } .ds-underline-field:focus-within { border-bottom-color: var(--color-text-primary, #1A1A1A); } .ds-underline-field__input { flex: 1; background: transparent; border: none; padding: 8px 0; font-family: 'Inter', sans-serif; font-size: 12px; color: var(--color-text-primary, #1A1A1A); } .ds-underline-field__input:focus { outline: none; } .ds-underline-field__submit { background: none; border: none; padding: 4px; color: var(--color-text-primary, #1A1A1A); cursor: pointer; transition: color 0.2s ease; } .ds-underline-field__submit:hover { color: var(--color-text-muted, #4D6B55); }"
+    },
+    {
+      "name": "Stat Card (Corner Accent)",
+      "kind": "custom",
+      "refersTo": "stat-card",
+      "description": "Signature dark-section stat card with a corner-accent bracket motif — used only inside the Forest Ledger 'Verified Impact' section.",
+      "html": "<div class=\"ds-stat-card\"><span class=\"ds-stat-card__value\">2.5<small>x</small></span><h3 class=\"ds-stat-card__label\">Living Wage Index</h3><p class=\"ds-stat-card__desc\">Paid well above the average living wage in our partner studio.</p></div>",
+      "css": ".ds-stat-card { position: relative; display: flex; flex-direction: column; padding: 24px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); } .ds-stat-card::before, .ds-stat-card::after { content: ''; position: absolute; width: 10px; height: 10px; border-color: rgba(255,255,255,0.2); } .ds-stat-card::before { top: 0; left: 0; border-top: 1px solid; border-left: 1px solid; } .ds-stat-card::after { bottom: 0; right: 0; border-bottom: 1px solid; border-right: 1px solid; } .ds-stat-card__value { font-family: 'Cinzel', serif; font-size: 44px; font-weight: 400; line-height: 1; letter-spacing: -0.02em; color: #FFFFFF; } .ds-stat-card__value small { font-size: 24px; font-weight: 300; color: #8FA89B; margin-left: 2px; } .ds-stat-card__label { margin-top: 12px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #8FA89B; } .ds-stat-card__desc { margin-top: 10px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 300; line-height: 1.6; color: rgba(235,243,236,0.75); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Atelier Ledger",
+    "overview": "Kazi Manufacturing's site reads like a working ledger kept by a precise Kathmandu workshop — every fabric, tailor, certification, and claim entered as a line item, not narrated as a mood. Forest Ledger (the deep green, #1B3D2A) behaves as the ledger's ink: it anchors headings, primary actions, and the one full-bleed dark section on every page, never as decoration. Hairline rule lines stand in for the ruled lines of a physical ledger page; alphanumeric codes (SVC-01, FAB-01, GAR-001) are literal entry numbers, not stylistic flourish. The voice is precise and grounded: closer to a technical spec sheet than a mood board, confident without resorting to soft-focus lifestyle-brand language, and willing to state a shortfall as plainly as a win. Imagery and copy return again and again to the same well — Kathmandu's textile heritage, named artisans, terraced highland farms, the Himalayas as literal backdrop — because specificity is the credibility mechanism, not scale or spectacle.",
+    "keyCharacteristics": [
+      "Spec-sheet structure: alphanumeric codes, bordered rows, exact figures over adjectives.",
+      "Forest green as structural ink, not accent — the one dark, full-bleed \"Verified Impact\" section is the ledger's stamped seal.",
+      "Two distinct corner languages: square (0px) for structural buttons and panels; full pill (999px) reserved narrowly for tags, counters, and swatches.",
+      "Uppercase, wide-tracked micro-labels (Inter, 0.12–0.35em) sit above nearly every heading, display, and section eyebrow.",
+      "Newsreader serif italics/roman for storytelling passages only — never for UI chrome."
+    ],
+    "rules": [
+      { "name": "The Ink Rule", "body": "Forest Ledger is a structural color, not a decorative one: it appears on primary CTAs, headings, and exactly one dark section type per page. It never appears as a background tint or a random accent fill.", "section": "colors" },
+      { "name": "The Hairline-Not-Shadow Rule", "body": "Separation between content blocks is drawn with a 1px rule/rule-light border, not a box-shadow. The single exception is the navigation mega-menu overlay (0 4px 24px rgba(0,0,0,0.07)), which is a true floating overlay, not a resting surface.", "section": "colors" },
+      { "name": "The One-Serif-Per-Job Rule", "body": "Cinzel is structural (headings, eyebrows); Newsreader is narrative (long-form passages); Inter is functional (everything else). No page mixes Cinzel and Newsreader for the same job.", "section": "typography" },
+      { "name": "The Flat-At-Rest Rule", "body": "Cards, buttons, and panels carry zero shadow at rest. If a component needs to read as \"above\" the page rather than \"on\" it — dropdowns, modals, the cart drawer — that is the only case for introducing a shadow, and it should match the Overlay value rather than inventing a new one.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep Forest Ledger structural — headings, primary fills, and the one dark section per page — never a background tint or random accent.",
+      "Do use hairline borders (rule / rule-light, 1px) as the default separator; reach for the Overlay shadow only for true floating elements (mega-menu, cart drawer, modals).",
+      "Do pair every display/headline with an uppercase, wide-tracked Inter eyebrow or label above it.",
+      "Do keep square (0px) corners on anything structural; reserve pill (999px) corners for tags, badges, counters, and swatches only.",
+      "Do keep Newsreader exclusive to narrative passages — never nav, buttons, or labels."
+    ],
+    "donts": [
+      "Don't rename espresso/cream tokens to literal brown/beige — the values are correct forest-green/sage, only the names are legacy.",
+      "Don't add drop shadows to cards or buttons at rest; depth comes from flat color blocks and hairlines.",
+      "Don't build new dark surfaces on the leftover .tech-card / .corner-accent / #E5232A red-accent utility block in globals.css — it's unused debris from an earlier design pass, not a second valid theme.",
+      "Don't mix Cinzel and Newsreader in the same component — Cinzel is structural, Newsreader is narrative."
+    ]
+  }
+}
