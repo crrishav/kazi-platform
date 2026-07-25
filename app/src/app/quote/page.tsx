@@ -127,9 +127,9 @@ function QuotePageInner() {
                 className="font-inter text-xs tracking-button uppercase text-text-muted hover:text-espresso transition-colors">
                 ← Return home
               </Link>
-              <Link href="/configure"
+              <Link href="/studio"
                 className="font-inter text-xs tracking-button uppercase text-accent-warm hover:text-espresso transition-colors">
-                Explore configurator →
+                Explore the Studio →
               </Link>
             </div>
           </div>

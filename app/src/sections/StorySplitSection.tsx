@@ -42,7 +42,7 @@ export default function StorySplitSection() {
     <section
       ref={sectionRef}
       style={{
-        backgroundColor: "#EBF3EC",
+        backgroundColor: "#FFFFFF",
         paddingTop: "80px",
         paddingBottom: "60px",
       }}

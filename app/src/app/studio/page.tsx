@@ -6,10 +6,14 @@ import dynamic from 'next/dynamic';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  Upload, ArrowRight, RotateCw, Minus, Plus, ChevronDown, ChevronUp, X,
+  Upload, ArrowRight, RotateCw, Minus, Plus, ChevronDown, ChevronUp, X, Type,
   Shirt, Layers, Palette, ImagePlus, PoundSterling, BookmarkPlus, Trash2,
 } from 'lucide-react';
 import { useSmoothScroll } from '@/hooks/useSmoothScroll';
+import {
+  type DesignLayer, type DesignSide, type ImageDesignLayer, type TextDesignLayer,
+  createImageLayer, createTextLayer, TEXT_FONTS,
+} from '@/lib/design-layers';
 
 const MODELS_READY = true;
 
@@ -50,14 +54,9 @@ const COLOURS = [
   { hex: '#C4956A', label: 'Camel' },
 ] as const;
 
-const PLACEMENTS = [
-  { id: 'front-chest', label: 'Front Chest', note: 'Left breast, standard position' },
-  { id: 'back',        label: 'Back',        note: 'Centred, below collar' },
-] as const;
-
 const VOLUME_TIERS: [number, number][] = [[50, 10.20], [100, 7.80], [200, 6.00], [500, 4.50], [1000, 3.20]];
 
-type PanelId = 'garment' | 'fabric' | 'colour' | 'logo' | 'quantity';
+type PanelId = 'garment' | 'fabric' | 'colour' | 'design' | 'quantity';
 
 interface SavedDesign {
   id: string;
@@ -65,14 +64,14 @@ interface SavedDesign {
   fabric: string;
   colour: string;
   qty: number;
-  logoPreviewUrl?: string;
+  layers: DesignLayer[];
 }
 
 const DOCK_ITEMS: { id: PanelId; label: string; icon: typeof Shirt }[] = [
   { id: 'garment',  label: 'Garment',  icon: Shirt },
   { id: 'fabric',   label: 'Fabric',   icon: Layers },
   { id: 'colour',   label: 'Colour',   icon: Palette },
-  { id: 'logo',     label: 'Logo',     icon: ImagePlus },
+  { id: 'design',   label: 'Design',   icon: ImagePlus },
   { id: 'quantity', label: 'Quantity & Pricing', icon: PoundSterling },
 ];
 
@@ -82,6 +81,25 @@ function pricePerUnit(qty: number): number {
   if (qty >= 200)  return 6.00;
   if (qty >= 100)  return 7.80;
   return 10.20;
+}
+
+async function fileToAspectRatio(url: string): Promise<number> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img.naturalWidth / img.naturalHeight || 1);
+    img.onerror = () => resolve(1);
+    img.src = url;
+  });
+}
+
+async function cloneImageLayerUrl(layer: DesignLayer): Promise<DesignLayer> {
+  if (layer.type !== 'image') return layer;
+  try {
+    const blob = await (await fetch(layer.url)).blob();
+    return { ...layer, url: URL.createObjectURL(blob) };
+  } catch {
+    return layer;
+  }
 }
 
 function ConfigPanel({
@@ -111,22 +129,22 @@ function ConfigPanel({
   );
 }
 
-function ConfigurePageInner() {
+function StudioPageInner() {
   useSmoothScroll();
   const searchParams = useSearchParams();
   const [activePanel, setActivePanel] = useState<PanelId | null>(null);
   const [garment, setGarment]     = useState<string>('t-shirt');
   const [fabric, setFabric]       = useState<string>('cotton-180');
   const [colour, setColour]       = useState<string>('#E8E0D0');
-  const [placement, setPlacement] = useState<string>('front-chest');
-  const [logoFile, setLogoFile]   = useState<File | null>(null);
-  const [logoUrl, setLogoUrl]     = useState<string | undefined>(undefined);
+  const [layers, setLayers]       = useState<DesignLayer[]>([]);
+  const [activeSide, setActiveSide] = useState<DesignSide>('front');
+  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [qty, setQty]             = useState<number>(100);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [collection, setCollection] = useState<SavedDesign[]>([]);
   const [showCollection, setShowCollection] = useState(false);
 
-  // Pre-fill garment and colour from query params (e.g. /configure?garment=hoodie&colour=%231B3D2A)
+  // Pre-fill garment and colour from query params (e.g. /studio?garment=hoodie&colour=%231B3D2A)
   useEffect(() => {
     const g = searchParams.get('garment');
     if (g && GARMENT_TYPES.some(gt => gt.id === g)) {
@@ -141,63 +159,113 @@ function ConfigurePageInner() {
   function togglePanel(id: PanelId) {
     setActivePanel(p => (p === id ? null : id));
   }
-  function handleLogoInput(e: React.ChangeEvent<HTMLInputElement>) {
+
+  function switchSide(side: DesignSide) {
+    setActiveSide(side);
+    setSelectedLayerId(null);
+  }
+
+  function selectLayer(id: string | null) {
+    setSelectedLayerId(id);
+    if (id) {
+      const layer = layers.find(l => l.id === id);
+      if (layer) setActiveSide(layer.side);
+    }
+  }
+
+  function updateLayer(id: string, patch: Partial<Pick<DesignLayer, 'x' | 'y' | 'width' | 'height'>>) {
+    setLayers(prev => prev.map(l => (l.id === id ? { ...l, ...patch } : l)));
+  }
+
+  function updateTextLayer(id: string, patch: Partial<Pick<TextDesignLayer, 'text' | 'color' | 'fontFamily'>>) {
+    setLayers(prev => prev.map(l => (l.id === id && l.type === 'text' ? { ...l, ...patch } : l)));
+  }
+
+  function deleteLayer(id: string) {
+    setLayers(prev => {
+      const target = prev.find(l => l.id === id);
+      if (target?.type === 'image') URL.revokeObjectURL(target.url);
+      return prev.filter(l => l.id !== id);
+    });
+    setSelectedLayerId(cur => (cur === id ? null : cur));
+  }
+
+  async function handleImageInput(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
-    setLogoFile(file);
-    if (logoUrl) URL.revokeObjectURL(logoUrl);
-    setLogoUrl(URL.createObjectURL(file));
+    const url = URL.createObjectURL(file);
+    const aspect = await fileToAspectRatio(url);
+    const layer = createImageLayer(activeSide, url, file.name, aspect);
+    setLayers(prev => [...prev, layer]);
+    setSelectedLayerId(layer.id);
   }
-  function clearLogo() {
-    if (logoUrl) URL.revokeObjectURL(logoUrl);
-    setLogoFile(null); setLogoUrl(undefined);
+
+  function addTextLayer() {
+    const layer = createTextLayer(activeSide);
+    setLayers(prev => [...prev, layer]);
+    setSelectedLayerId(layer.id);
   }
-  function addToCollection() {
+
+  async function addToCollection() {
+    // Mint independent object URLs for the snapshot — the live layers' URLs get revoked
+    // on delete/replace, which would otherwise break this saved entry's thumbnail.
+    const snapshot = await Promise.all(layers.map(cloneImageLayerUrl));
     setCollection(prev => [
-      {
-        id: crypto.randomUUID(),
-        garment, fabric, colour, qty,
-        // Mint an independent object URL — the live `logoUrl` gets revoked on replace/clear,
-        // which would otherwise break this saved entry's thumbnail.
-        logoPreviewUrl: logoFile ? URL.createObjectURL(logoFile) : undefined,
-      },
+      { id: crypto.randomUUID(), garment, fabric, colour, qty, layers: snapshot },
       ...prev,
     ]);
     setShowCollection(true);
   }
+
   function removeFromCollection(id: string) {
     setCollection(prev => {
       const target = prev.find(entry => entry.id === id);
-      if (target?.logoPreviewUrl) URL.revokeObjectURL(target.logoPreviewUrl);
+      target?.layers.forEach(l => { if (l.type === 'image') URL.revokeObjectURL(l.url); });
       return prev.filter(entry => entry.id !== id);
     });
   }
 
-  const selectedColour    = COLOURS.find(c => c.hex === colour);
+  const selectedColour    = COLOURS.find(c => c.hex.toLowerCase() === colour.toLowerCase());
   const selectedFabric    = FABRICS.find(f => f.id === fabric);
   const selectedGarment   = GARMENT_TYPES.find(g => g.id === garment);
-  const selectedPlacement = PLACEMENTS.find(p => p.id === placement);
   const ppu      = pricePerUnit(qty);
   const totalGBP = (ppu * qty).toFixed(2);
+  const sideLayers = layers.filter(l => l.side === activeSide);
+
+  const frontCount = layers.filter(l => l.side === 'front').length;
+  const backCount  = layers.filter(l => l.side === 'back').length;
+  const designSummary = layers.length === 0
+    ? 'No custom artwork'
+    : `${frontCount} front element(s), ${backCount} back element(s)`;
 
   const qtyRange = qty >= 1000 ? '1,000+' : qty >= 500 ? '500–999' : qty >= 250 ? '250–499' : qty >= 100 ? '100–249' : '50–99';
   const quoteHref = `/quote?${new URLSearchParams({
     productType: garment === 'hoodie' ? 'Hoodies' : 'T-Shirts',
     qtyRange,
-    details: `Custom configuration: ${selectedGarment?.label ?? garment}, Fabric: ${selectedFabric?.label ?? fabric} (${selectedFabric?.spec ?? ''}), Colour: ${selectedColour?.label ?? colour}, Logo: ${selectedPlacement?.label ?? placement}, Qty: ${qty} units, Est. total: £${totalGBP}`,
+    details: `Custom configuration: ${selectedGarment?.label ?? garment}, Fabric: ${selectedFabric?.label ?? fabric} (${selectedFabric?.spec ?? ''}), Colour: ${selectedColour?.label ?? colour}, Design: ${designSummary}, Qty: ${qty} units, Est. total: £${totalGBP}`,
   }).toString()}`;
 
   return (
     <main className="h-[100dvh] overflow-hidden bg-white relative">
       <Navigation />
 
-      <div className="absolute inset-0 pt-[112px]">
+      <div className="absolute inset-0 pt-[80px]">
         <div className="relative w-full h-full bg-cream/30 overflow-hidden">
 
           {/* Canvas */}
           <div className="absolute inset-0 bottom-28">
             {MODELS_READY ? (
-              <GarmentViewer garment={garment} colour={colour} logoUrl={logoUrl} placement={placement} />
+              <GarmentViewer
+                garment={garment}
+                colour={colour}
+                layers={layers}
+                activeSide={activeSide}
+                selectedLayerId={selectedLayerId}
+                onSelectLayer={selectLayer}
+                onUpdateLayer={updateLayer}
+                onDeleteLayer={deleteLayer}
+              />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center gap-5">
                 <div className="relative w-20 h-28 opacity-20">
@@ -277,75 +345,126 @@ function ConfigurePageInner() {
 
           {activePanel === 'colour' && (
             <ConfigPanel title="Colour" onClose={() => setActivePanel(null)}>
-              <div className="grid grid-cols-5 gap-2.5 mb-5">
-                {COLOURS.map(c => (
-                  <div key={c.hex} className="flex flex-col items-center gap-1">
-                    <button onClick={() => setColour(c.hex)} title={c.label}
-                      className={`w-9 h-9 border-2 transition-all duration-200 ${
-                        colour === c.hex ? 'border-espresso scale-110 shadow-sm' : 'border-rule hover:border-espresso/40'
-                      }`}
-                      style={{ backgroundColor: c.hex }} />
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-center gap-3 p-3 border border-rule">
-                <div className="w-8 h-8 border border-rule shrink-0" style={{ backgroundColor: colour }} />
+              <div className="flex items-center gap-3 p-3 border border-rule mb-4">
+                <input
+                  type="color"
+                  value={colour}
+                  onChange={e => setColour(e.target.value)}
+                  aria-label="Pick a custom colour"
+                  className="w-11 h-11 border border-rule cursor-pointer bg-white p-0.5 shrink-0"
+                />
                 <div className="min-w-0">
-                  <p className="font-cinzel text-xs text-espresso truncate">{selectedColour?.label ?? colour}</p>
-                  <p className="font-inter text-[10px] text-text-light">{colour}</p>
+                  <p className="font-cinzel text-xs text-espresso truncate">{selectedColour?.label ?? 'Custom'}</p>
+                  <p className="font-inter text-[10px] text-text-light">{colour.toUpperCase()}</p>
                 </div>
+              </div>
+
+              <p className="font-inter text-[9px] tracking-nav text-text-light uppercase mb-2.5">Quick picks</p>
+              <div className="grid grid-cols-6 gap-2">
+                {COLOURS.map(c => (
+                  <button key={c.hex} onClick={() => setColour(c.hex)} title={c.label}
+                    className={`w-8 h-8 border-2 transition-all duration-200 ${
+                      colour.toLowerCase() === c.hex.toLowerCase() ? 'border-espresso scale-110 shadow-sm' : 'border-rule hover:border-espresso/40'
+                    }`}
+                    style={{ backgroundColor: c.hex }} />
+                ))}
               </div>
             </ConfigPanel>
           )}
 
-          {activePanel === 'logo' && (
-            <ConfigPanel title="Logo & Placement" onClose={() => setActivePanel(null)}>
-              <div className="mb-5">
-                {logoFile ? (
-                  <div className="flex items-center gap-3 p-3 border border-accent-warm/40 bg-accent-warm/5">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={logoUrl} alt="logo preview" className="w-11 h-11 object-contain border border-rule bg-white p-1 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-inter text-xs text-espresso truncate">{logoFile.name}</p>
-                      <p className="font-inter text-[10px] text-text-muted mt-0.5">{(logoFile.size / 1024).toFixed(0)} KB</p>
-                    </div>
-                    <button onClick={clearLogo} aria-label="Remove logo" className="text-text-muted hover:text-red-500 transition-colors shrink-0">
-                      <X size={14} strokeWidth={1.5} />
-                    </button>
-                  </div>
-                ) : (
-                  <label className="relative flex flex-col items-center justify-center gap-2.5 p-6 border-2 border-dashed border-rule hover:border-accent-warm/50 bg-white cursor-pointer transition-all duration-200">
-                    <input type="file" accept=".png,.jpg,.jpeg,.svg,.webp" onChange={handleLogoInput} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                    <Upload className="w-5 h-5 text-text-light" strokeWidth={1.5} />
-                    <div className="text-center">
-                      <p className="font-inter text-xs text-espresso mb-1">Upload your graphic</p>
-                      <p className="font-inter text-[9px] tracking-nav text-text-light uppercase">PNG · SVG · JPG · WEBP</p>
-                    </div>
-                  </label>
-                )}
-              </div>
-
-              <p className="font-inter text-[9px] tracking-nav text-text-light uppercase mb-2.5">Placement</p>
-              <div className="space-y-2.5">
-                {PLACEMENTS.map(p => (
-                  <label key={p.id}
-                    className={`flex items-center gap-3 p-3 border cursor-pointer transition-all duration-200 ${
-                      placement === p.id ? 'border-espresso bg-espresso text-cream' : 'border-rule bg-white hover:border-espresso/40'
+          {activePanel === 'design' && (
+            <ConfigPanel title="Design" onClose={() => setActivePanel(null)}>
+              <div className="flex border border-rule mb-4 overflow-hidden rounded-md">
+                {(['front', 'back'] as const).map(side => (
+                  <button key={side} onClick={() => switchSide(side)}
+                    className={`flex-1 py-2 font-inter text-[10px] tracking-nav uppercase transition-colors ${
+                      activeSide === side ? 'bg-espresso text-cream' : 'bg-white text-text-muted hover:text-espresso'
                     }`}>
-                    <input type="radio" name="placement" value={p.id} checked={placement === p.id}
-                      onChange={() => setPlacement(p.id)} className="sr-only" />
-                    <div className={`w-3.5 h-3.5 border shrink-0 flex items-center justify-center transition-colors ${
-                      placement === p.id ? 'border-cream/40' : 'border-rule'
-                    }`}>
-                      {placement === p.id && <div className="w-1.5 h-1.5 bg-cream" />}
-                    </div>
-                    <div>
-                      <p className={`font-cinzel text-xs ${placement === p.id ? 'text-cream' : 'text-espresso'}`}>{p.label}</p>
-                      <p className={`font-inter text-[10px] mt-0.5 ${placement === p.id ? 'text-cream/60' : 'text-text-muted'}`}>{p.note}</p>
-                    </div>
-                  </label>
+                    {side}
+                  </button>
                 ))}
               </div>
+
+              <div className="grid grid-cols-2 gap-2.5 mb-4">
+                <label className="relative flex flex-col items-center justify-center gap-1.5 py-4 border-2 border-dashed border-rule hover:border-accent-warm/50 bg-white cursor-pointer transition-all duration-200">
+                  <input type="file" accept=".png,.jpg,.jpeg,.svg,.webp" onChange={handleImageInput} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                  <Upload className="w-4 h-4 text-text-light" strokeWidth={1.5} />
+                  <span className="font-inter text-[10px] text-espresso">Add Image</span>
+                </label>
+                <button onClick={addTextLayer}
+                  className="flex flex-col items-center justify-center gap-1.5 py-4 border-2 border-dashed border-rule hover:border-accent-warm/50 bg-white transition-all duration-200">
+                  <Type className="w-4 h-4 text-text-light" strokeWidth={1.5} />
+                  <span className="font-inter text-[10px] text-espresso">Add Text</span>
+                </button>
+              </div>
+
+              {sideLayers.length === 0 ? (
+                <p className="font-inter text-xs text-text-muted leading-relaxed">
+                  No elements on the {activeSide} yet. Add an image or text, then drag it directly on the model to position and resize it.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {sideLayers.map(layer => (
+                    <div key={layer.id}>
+                      <button onClick={() => selectLayer(layer.id)}
+                        className={`flex items-center gap-2.5 w-full text-left p-2 border transition-colors ${
+                          selectedLayerId === layer.id ? 'border-espresso bg-espresso/5' : 'border-rule hover:border-espresso/30'
+                        }`}>
+                        <div className="w-8 h-8 border border-rule shrink-0 flex items-center justify-center bg-white overflow-hidden">
+                          {layer.type === 'image' ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={layer.url} alt="" className="w-full h-full object-contain" />
+                          ) : (
+                            <Type size={13} strokeWidth={1.5} className="text-text-light" />
+                          )}
+                        </div>
+                        <span className="flex-1 min-w-0 font-inter text-xs text-espresso truncate">
+                          {layer.type === 'image' ? layer.fileName : (layer.text || 'Text')}
+                        </span>
+                        <Trash2
+                          size={13}
+                          strokeWidth={1.5}
+                          className="text-text-muted hover:text-red-500 transition-colors shrink-0"
+                          onClick={(e) => { e.stopPropagation(); deleteLayer(layer.id); }}
+                        />
+                      </button>
+
+                      {selectedLayerId === layer.id && layer.type === 'text' && (
+                        <div className="mt-2 mb-1 p-2.5 border border-rule-light space-y-2.5">
+                          <input
+                            type="text"
+                            value={layer.text}
+                            onChange={e => updateTextLayer(layer.id, { text: e.target.value })}
+                            placeholder="Your text"
+                            className="w-full border border-rule px-2.5 py-1.5 font-inter text-xs text-espresso focus:outline-none focus:border-espresso"
+                          />
+                          <div className="flex items-center gap-2">
+                            {TEXT_FONTS.map(f => (
+                              <button key={f.value} onClick={() => updateTextLayer(layer.id, { fontFamily: f.value })}
+                                style={{ fontFamily: f.value }}
+                                className={`px-2 py-1 border text-xs transition-colors ${
+                                  layer.fontFamily === f.value ? 'border-espresso bg-espresso text-cream' : 'border-rule text-espresso hover:border-espresso/40'
+                                }`}>
+                                {f.label}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-2.5">
+                            <input
+                              type="color"
+                              value={layer.color}
+                              onChange={e => updateTextLayer(layer.id, { color: e.target.value })}
+                              aria-label="Text colour"
+                              className="w-8 h-8 border border-rule cursor-pointer bg-white p-0.5"
+                            />
+                            <span className="font-inter text-[10px] text-text-light uppercase">{layer.color}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </ConfigPanel>
           )}
 
@@ -436,25 +555,29 @@ function ConfigurePageInner() {
             >
               {collection.length === 0 ? (
                 <p className="font-inter text-xs text-text-muted leading-relaxed">
-                  No saved designs yet. Configure a garment and tap <Plus size={10} strokeWidth={2} className="inline -mt-0.5" /> to save it here.
+                  No saved designs yet. Design a garment and tap <Plus size={10} strokeWidth={2} className="inline -mt-0.5" /> to save it here.
                 </p>
               ) : (
                 <div className="space-y-2.5">
                   {collection.map(entry => {
                     const g = GARMENT_TYPES.find(x => x.id === entry.garment);
                     const f = FABRICS.find(x => x.id === entry.fabric);
-                    const c = COLOURS.find(x => x.hex === entry.colour);
+                    const c = COLOURS.find(x => x.hex.toLowerCase() === entry.colour.toLowerCase());
+                    const thumb = entry.layers.find((l): l is ImageDesignLayer => l.type === 'image');
                     return (
                       <div key={entry.id} className="flex items-center gap-3 border border-rule p-2.5">
                         <div className="relative w-11 h-11 border border-rule shrink-0 overflow-hidden" style={{ backgroundColor: entry.colour }}>
-                          {entry.logoPreviewUrl && (
+                          {thumb && (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={entry.logoPreviewUrl} alt="" className="absolute inset-0 w-full h-full object-contain p-1" />
+                            <img src={thumb.url} alt="" className="absolute inset-0 w-full h-full object-contain p-1" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-cinzel text-xs text-espresso truncate">{g?.label ?? entry.garment}</p>
-                          <p className="font-inter text-[10px] text-text-muted truncate">{f?.label ?? entry.fabric} · {c?.label ?? entry.colour} · {entry.qty}u</p>
+                          <p className="font-inter text-[10px] text-text-muted truncate">
+                            {f?.label ?? entry.fabric} · {c?.label ?? entry.colour} · {entry.qty}u
+                            {entry.layers.length > 0 && ` · ${entry.layers.length} el.`}
+                          </p>
                         </div>
                         <button onClick={() => removeFromCollection(entry.id)} aria-label="Remove from collection"
                           className="text-text-muted hover:text-red-500 transition-colors shrink-0">
@@ -506,10 +629,10 @@ function ConfigurePageInner() {
   );
 }
 
-export default function ConfigurePage() {
+export default function StudioPage() {
   return (
     <Suspense>
-      <ConfigurePageInner />
+      <StudioPageInner />
     </Suspense>
   );
 }

@@ -38,7 +38,7 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
   if (!product) {
     return (
       <main className="min-h-screen bg-white flex flex-col justify-between">
-        <Navigation showAnnouncementBar={false} />
+        <Navigation />
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center pt-40">
           <h1 className="font-cinzel text-3xl text-espresso mb-4">Product Not Found</h1>
           <p className="font-inter text-sm text-text-muted mb-8 max-w-md">
@@ -90,7 +90,7 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
 
   return (
     <>
-      <Navigation showAnnouncementBar={false} />
+      <Navigation />
 
       <main className="min-h-screen bg-white flex flex-col pt-20">
         <div className="w-full max-w-7xl mx-auto px-6 py-4 flex flex-col">
@@ -259,10 +259,10 @@ export default function ProductDetailClient({ slug }: ProductDetailClientProps) 
 
               <div className="flex flex-col sm:flex-row gap-2.5 mb-4">
                 <Link
-                  href={`/configure?garment=${product.garment}&colour=${encodeURIComponent(activeColorHex)}`}
+                  href={`/studio?garment=${product.garment}&colour=${encodeURIComponent(activeColorHex)}`}
                   className="flex-1 inline-flex items-center justify-center gap-2 bg-espresso text-cream font-inter text-xs tracking-button uppercase py-3 hover:bg-accent-warm transition-colors duration-200"
                 >
-                  Configure &amp; Design <ArrowRight size={13} strokeWidth={1.5} />
+                  Design in the Studio <ArrowRight size={13} strokeWidth={1.5} />
                 </Link>
                 <Link
                   href={`/quote?productType=${product.garment === 'hoodie' ? 'Hoodies' : 'T-Shirts'}&qtyRange=100–249&details=${encodeURIComponent(

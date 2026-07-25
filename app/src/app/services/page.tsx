@@ -13,7 +13,7 @@ const SERVICES = [
     description:
       'End-to-end custom garment production. From fabric sourcing and pattern grading to cutting, sewing, and finishing — we build your collection to your exact specifications.',
     specs: ['Min. 50 units', 'All fabric weights', 'GOTS-certified cotton available', 'Lead time: 6–10 weeks'],
-    cta: { label: 'Configure a garment', href: '/configure' },
+    cta: { label: 'Design in the Studio', href: '/studio' },
     accent: '#3A7D44',
   },
   {
@@ -118,9 +118,9 @@ export default function ServicesPage() {
             </p>
           </div>
           <div className="flex gap-3 shrink-0">
-            <Link href="/configure"
+            <Link href="/studio"
               className="font-inter text-xs tracking-button uppercase text-cream border border-cream/30 px-5 py-3 hover:border-cream transition-colors duration-200">
-              Try Configurator
+              Try the Studio
             </Link>
             <Link href="/quote"
               className="font-inter text-xs tracking-button uppercase text-espresso bg-cream px-5 py-3 hover:bg-accent-warm hover:text-cream transition-colors duration-200">

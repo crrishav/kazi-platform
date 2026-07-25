@@ -44,7 +44,7 @@ export default function MenCollectionsPage() {
                 <div className="w-full aspect-[3/4] bg-white/60 mb-3 relative overflow-hidden">
                   <div className="absolute inset-0 flex items-center justify-center">
                     <span className="font-cinzel text-xs text-text-light tracking-widest uppercase group-hover:text-accent-warm transition-colors duration-200">
-                      Configure →
+                      Customize →
                     </span>
                   </div>
                 </div>
@@ -58,9 +58,9 @@ export default function MenCollectionsPage() {
 
           <div className="mt-12 text-center">
             <p className="font-cinzel text-sm text-text-muted mb-4">Looking for custom production?</p>
-            <Link href="/configure"
+            <Link href="/studio"
               className="inline-flex items-center gap-2 border border-espresso text-espresso font-inter text-xs tracking-button uppercase px-6 py-3 hover:bg-espresso hover:text-cream transition-colors duration-200">
-              Configure a collection
+              Design in the Studio
             </Link>
           </div>
         </div>

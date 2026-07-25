@@ -126,7 +126,7 @@ export default function CartDrawer({ isOpen, onClose, topOffset = 0 }: CartDrawe
               Your bag is empty
             </p>
             <Link
-              href="/configure"
+              href="/studio"
               onClick={onClose}
               tabIndex={isOpen ? 0 : -1}
               style={{

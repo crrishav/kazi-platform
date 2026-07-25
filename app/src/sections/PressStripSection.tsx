@@ -224,10 +224,10 @@ export default function PressStripSection() {
     <section
       ref={sectionRef}
       style={{
-        backgroundColor: "#EBF3EC",
+        backgroundColor: "#FFFFFF",
         paddingTop: "48px",
         paddingBottom: "48px",
-        borderTop: "1px solid #D6E6D8",
+        borderTop: "1px solid #EAEAEA",
       }}
     >
       <div className="container-pad" style={{ maxWidth: 1200, margin: "0 auto" }}>

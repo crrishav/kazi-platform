@@ -66,7 +66,7 @@ export default function SplashScreen() {
           width: "140px",
           height: "140px",
           objectFit: "contain",
-          filter: "brightness(0)",
+          filter: "brightness(0) invert(1)",
         }}
       />
     </div>

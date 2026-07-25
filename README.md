@@ -100,7 +100,7 @@ app/
 │   │   ├── admin/       # Admin dashboard (orders, pricing, users)
 │   │   ├── auth/        # Login, register, forgot password
 │   │   ├── collections/ # Product collection pages
-│   │   ├── configure/   # Atelier — custom order configurator
+│   │   ├── studio/      # Studio — custom order configurator
 │   │   ├── dashboard/   # Customer dashboard & order tracking
 │   │   ├── factory/     # Factory/employee view
 │   │   ├── pricing/     # Pricing calculator
@@ -121,7 +121,7 @@ app/
 | Route | Description |
 |---|---|
 | `/` | Homepage — hero, story, products, press |
-| `/configure` | Atelier — custom collection configurator |
+| `/studio` | Studio — custom collection configurator |
 | `/quote` | Enquire / get a quote |
 | `/pricing` | Pricing calculator |
 | `/services` | Our Heritage |

@@ -93,7 +93,7 @@ export default function ProductGridSection() {
       id="collection"
       ref={sectionRef}
       style={{
-        backgroundColor: "#EBF3EC",
+        backgroundColor: "#FFFFFF",
         paddingTop: "40px",
         paddingBottom: "80px",
       }}
@@ -143,7 +143,7 @@ export default function ProductGridSection() {
 
         {/* CTA Button */}
         <div className="flex justify-center" style={{ marginTop: "48px" }}>
-          <GhostButton href="/configure">Design Your Garment</GhostButton>
+          <GhostButton href="/studio">Design Your Garment</GhostButton>
         </div>
       </div>
     </section>

@@ -12,7 +12,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 const workLinks = [
   { label: "Request a Sample",       href: "/quote" },
-  { label: "Design Your Garment",    href: "/configure" },
+  { label: "Design Your Garment",    href: "/studio" },
   { label: "Pricing",                href: "/pricing" },
   { label: "Our Services",           href: "/services" },
   { label: "Partner Programme",      href: "/quote" },
@@ -79,12 +79,10 @@ export default function Footer() {
   };
 
   return (
-    <footer ref={footerRef}>
+    <footer ref={footerRef} style={{ backgroundColor: "#FFFFFF", borderTop: "1px solid #EAEAEA" }}>
       {/* Main Footer Grid */}
       <div
         style={{
-          backgroundColor: "#EBF3EC",
-          borderTop: "1px solid #C2D6C6",
           paddingTop: "64px",
           paddingBottom: "48px",
         }}
@@ -262,32 +260,35 @@ export default function Footer() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Bottom Bar */}
-      <div
-        className="footer-bottom flex flex-col sm:flex-row items-center justify-between gap-3"
-        style={{
-          backgroundColor: "#1B3D2A",
-          padding: "16px 48px",
-        }}
-      >
-        <p
+        {/* Copyright + CTA */}
+        <div
+          className="footer-bottom flex flex-col sm:flex-row items-center justify-between gap-3 container-pad"
           style={{
-            fontFamily: "'Inter', sans-serif",
-            fontSize: "10px",
-            fontWeight: 400,
-            letterSpacing: "0.12em",
-            lineHeight: 1.4,
-            color: "rgba(255,255,255,0.7)",
+            maxWidth: 1200,
+            margin: "0 auto",
+            marginTop: "48px",
+            paddingTop: "24px",
+            borderTop: "1px solid #EAEAEA",
           }}
         >
-          &copy; 2015–2026 &middot; Kazi Manufacturing Ltd, Kathmandu, Nepal
-        </p>
-        <div className="mt-3 sm:mt-0">
-          <GhostButton href="/quote" variant="light">
-            Get a Quote
-          </GhostButton>
+          <p
+            style={{
+              fontFamily: "'Inter', sans-serif",
+              fontSize: "10px",
+              fontWeight: 400,
+              letterSpacing: "0.12em",
+              lineHeight: 1.4,
+              color: "#6B6560",
+            }}
+          >
+            &copy; 2015–2026 &middot; Kazi Manufacturing Ltd, Kathmandu, Nepal
+          </p>
+          <div className="mt-3 sm:mt-0">
+            <GhostButton href="/quote" variant="dark">
+              Get a Quote
+            </GhostButton>
+          </div>
         </div>
       </div>
     </footer>

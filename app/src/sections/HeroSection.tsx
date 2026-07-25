@@ -50,6 +50,16 @@ export default function HeroSection() {
         }}
       />
 
+      {/* Bottom-left tagline */}
+      <div
+        className="absolute hidden md:block"
+        style={{ left: "48px", bottom: "48px", zIndex: 5, maxWidth: 360 }}
+      >
+        <p className="font-inter text-sm text-white/90 tracking-wide leading-relaxed">
+          Precision tailoring, crafted for scale.
+        </p>
+      </div>
+
       {/* Bottom-right CTA */}
       <div
         className="absolute hidden md:block"

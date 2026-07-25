@@ -6,14 +6,9 @@ import { usePathname } from "next/navigation";
 import { User, ShoppingBag, Menu, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import CartDrawer from "@/components/CartDrawer";
-import AnnouncementBar from "@/components/AnnouncementBar";
 import { useCart } from "@/context/CartContext";
 
-interface NavigationProps {
-  showAnnouncementBar?: boolean;
-}
-
-export default function Navigation({ showAnnouncementBar = true }: NavigationProps) {
+export default function Navigation() {
   const [isScrolled, setIsScrolled]         = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen]         = useState(false);
@@ -50,7 +45,7 @@ export default function Navigation({ showAnnouncementBar = true }: NavigationPro
                              "/auth/login";
 
   const leftNavLinks = [
-    { label: "Design Your Garment", href: "/configure" },
+    { label: "Design Your Garment", href: "/studio" },
     { label: "Our Services",        href: "/services" },
   ];
 
@@ -58,15 +53,14 @@ export default function Navigation({ showAnnouncementBar = true }: NavigationPro
     href !== "#" && pathname?.startsWith(href);
 
   const isHomepage = !pathname || pathname === "/";
-  const showSolidNav = isScrolled || !isHomepage;
+  const showSolidNav = isScrolled || !isHomepage || isMobileMenuOpen;
 
   return (
     <>
-    {showAnnouncementBar && <AnnouncementBar />}
     <nav
       className="fixed left-0 right-0 transition-all duration-500"
       style={{
-        top: showAnnouncementBar ? "32px" : "0px",
+        top: "0px",
         zIndex: 90,
         backgroundColor: showSolidNav ? "rgba(255,255,255,0.97)" : "rgba(255,255,255,0)",
         backdropFilter: showSolidNav ? "blur(16px)" : "none",
@@ -121,55 +115,23 @@ export default function Navigation({ showAnnouncementBar = true }: NavigationPro
         {/* Center: Brand Logo — oversized then clipped to remove PNG padding */}
         <Link
           href="/"
-          className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2"
+          className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-start overflow-hidden w-[120px] h-[60px] md:w-[160px] md:h-[80px]"
           aria-label="Kazi Manufacturing — home"
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            width: "160px",
-            height: "80px",
-            overflow: "hidden",
-          }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logos/kazi-logo.png"
             alt="Kazi Manufacturing"
+            className="object-contain shrink-0 select-none pointer-events-none w-[130px] h-[130px] -mt-[33px] -ml-[11px] md:w-[172px] md:h-[172px] md:-mt-11 md:-ml-[15px]"
             style={{
-              width: "172px",
-              height: "172px",
-              objectFit: "contain",
-              flexShrink: 0,
-              marginTop: "-44px",
-              marginLeft: "-15px",
               filter: showSolidNav ? "brightness(0)" : "brightness(0) invert(1)",
               transition: "filter 0.4s ease",
-              userSelect: "none",
-              pointerEvents: "none",
             }}
           />
         </Link>
 
         {/* Right: CTA + Icons */}
         <div className="flex items-center gap-4">
-
-          {/* Request a Quote — hidden on mobile */}
-          <Link
-            href="/quote"
-            className="hidden md:inline-flex items-center nav-link-underline"
-            style={{
-              fontFamily: "'Inter', sans-serif",
-              fontSize: "12px",
-              fontWeight: 400,
-              letterSpacing: "0.06em",
-              color: showSolidNav ? "#1A1A1A" : "rgba(255,255,255,0.92)",
-              textDecoration: "none",
-              transition: "color 0.3s ease",
-              paddingBottom: "2px",
-            }}
-          >
-            Request a Quote
-          </Link>
 
           <Link
             href={dashboardHref}
@@ -216,10 +178,10 @@ export default function Navigation({ showAnnouncementBar = true }: NavigationPro
         <div
           className="md:hidden absolute left-0 right-0 top-full"
           style={{
-            backgroundColor: "rgba(235, 243, 236, 0.98)",
+            backgroundColor: "rgba(255, 255, 255, 0.98)",
             backdropFilter: "blur(12px)",
             zIndex: 89,
-            borderTop: "1px solid #D6E6D8",
+            borderTop: "1px solid #EAEAEA",
           }}
         >
           <div className="flex flex-col p-8 gap-0">
@@ -235,37 +197,15 @@ export default function Navigation({ showAnnouncementBar = true }: NavigationPro
                   letterSpacing: "0.18em",
                   color: isActive(link.href) ? "#3A7D44" : "#1A1A1A",
                   textDecoration: "none",
-                  borderBottom: i < leftNavLinks.length - 1 ? "1px solid #D6E6D8" : "none",
+                  borderBottom: i < leftNavLinks.length - 1 ? "1px solid #EAEAEA" : "none",
                 }}
               >
                 {link.label}
               </Link>
             ))}
 
-            {/* Request a Quote CTA */}
-            <div className="pt-6">
-              <Link
-                href="/quote"
-                style={{
-                  display: "block",
-                  textAlign: "center",
-                  fontFamily: "'Inter', sans-serif",
-                  fontSize: "11px",
-                  fontWeight: 500,
-                  letterSpacing: "0.14em",
-                  color: "#EBF3EC",
-                  backgroundColor: "#1B3D2A",
-                  padding: "14px 24px",
-                  borderRadius: "100px",
-                  textDecoration: "none",
-                }}
-              >
-                Request a Quote
-              </Link>
-            </div>
-
             {/* Account */}
-            <div className="pt-3">
+            <div className="pt-6">
               <Link
                 href={dashboardHref}
                 style={{
@@ -290,7 +230,7 @@ export default function Navigation({ showAnnouncementBar = true }: NavigationPro
       )}
     </nav>
 
-    <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} topOffset={showAnnouncementBar ? 32 : 0} />
+    <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </>
   );
 }

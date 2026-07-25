@@ -24,7 +24,7 @@ const sustainabilityLinks = [
 
 const workWithUsLinks = [
   { label: "Request a Sample",         href: "/quote" },
-  { label: "Design Your Garment",      href: "/configure" },
+  { label: "Design Your Garment",      href: "/studio" },
   { label: "Pricing",                  href: "/pricing" },
   { label: "Our Certifications",       href: "#" },
   { label: "Sustainability Report",    href: "#" },
@@ -35,7 +35,7 @@ export default function MegaMenu({ isOpen }: MegaMenuProps) {
     <div
       className="fixed left-0 right-0 overflow-hidden"
       style={{
-        top: "112px",          /* 32px announcement bar + 80px nav */
+        top: "80px",
         backgroundColor: "#FFFFFF",
         zIndex: 85,
         opacity: isOpen ? 1 : 0,
