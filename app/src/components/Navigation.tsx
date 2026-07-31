@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { User, ShoppingBag, Menu, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import CartDrawer from "@/components/CartDrawer";
+import AnnouncementBar from "@/components/AnnouncementBar";
 import { useCart } from "@/context/CartContext";
 
 export default function Navigation() {
@@ -45,8 +46,8 @@ export default function Navigation() {
                              "/auth/login";
 
   const leftNavLinks = [
-    { label: "Design Your Garment", href: "/studio" },
-    { label: "Our Services",        href: "/services" },
+    { label: "Atelier",      href: "/studio" },
+    { label: "Our Heritage", href: "/services" },
   ];
 
   const isActive = (href: string) =>
@@ -57,10 +58,11 @@ export default function Navigation() {
 
   return (
     <>
+    <AnnouncementBar />
     <nav
       className="fixed left-0 right-0 transition-all duration-500"
       style={{
-        top: "0px",
+        top: "32px",
         zIndex: 90,
         backgroundColor: showSolidNav ? "rgba(255,255,255,0.97)" : "rgba(255,255,255,0)",
         backdropFilter: showSolidNav ? "blur(16px)" : "none",
@@ -71,10 +73,10 @@ export default function Navigation() {
     >
       <div
         className="flex items-center justify-between h-full relative container-pad"
-        style={{ maxWidth: 1400, margin: "0 auto" }}
+        style={{ maxWidth: 1680, margin: "0 auto" }}
       >
         {/* Left: Nav Links */}
-        <div className="hidden md:flex items-center gap-8">
+        <div className="hidden md:flex items-center gap-8 md:-ml-6">
           {leftNavLinks.map((link) => (
             <Link
               key={link.label}
@@ -115,7 +117,7 @@ export default function Navigation() {
         {/* Center: Brand Logo — oversized then clipped to remove PNG padding */}
         <Link
           href="/"
-          className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-start overflow-hidden w-[120px] h-[60px] md:w-[160px] md:h-[80px]"
+          className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-start overflow-hidden w-[120px] h-[60px] md:w-[160px] md:h-[80px] ml-3 md:ml-0"
           aria-label="Kazi Manufacturing — home"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -131,7 +133,25 @@ export default function Navigation() {
         </Link>
 
         {/* Right: CTA + Icons */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6 md:-mr-6">
+
+          {/* Enquire — hidden on mobile */}
+          <Link
+            href="/quote"
+            className="hidden md:inline-flex items-center nav-link-underline"
+            style={{
+              fontFamily: "'Inter', sans-serif",
+              fontSize: "12px",
+              fontWeight: 400,
+              letterSpacing: "0.06em",
+              color: showSolidNav ? "#1A1A1A" : "rgba(255,255,255,0.92)",
+              textDecoration: "none",
+              transition: "color 0.3s ease",
+              paddingBottom: "2px",
+            }}
+          >
+            Enquire
+          </Link>
 
           <Link
             href={dashboardHref}
@@ -204,8 +224,30 @@ export default function Navigation() {
               </Link>
             ))}
 
-            {/* Account */}
+            {/* Enquire CTA */}
             <div className="pt-6">
+              <Link
+                href="/quote"
+                style={{
+                  display: "block",
+                  textAlign: "center",
+                  fontFamily: "'Inter', sans-serif",
+                  fontSize: "11px",
+                  fontWeight: 500,
+                  letterSpacing: "0.14em",
+                  color: "#EBF3EC",
+                  backgroundColor: "#1B3D2A",
+                  padding: "14px 24px",
+                  borderRadius: "100px",
+                  textDecoration: "none",
+                }}
+              >
+                Enquire
+              </Link>
+            </div>
+
+            {/* Account */}
+            <div className="pt-3">
               <Link
                 href={dashboardHref}
                 style={{
@@ -230,7 +272,7 @@ export default function Navigation() {
       )}
     </nav>
 
-    <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+    <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} topOffset={32} />
     </>
   );
 }

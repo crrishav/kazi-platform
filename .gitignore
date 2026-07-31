@@ -38,3 +38,11 @@ Thumbs.db
 
 # Vercel
 .vercel
+
+# Claude / agent skills
+.claude/skills/
+app/.claude/skills/
+.agents/skills/
+app/.agents/skills/
+skills-lock.json
+app/skills-lock.json

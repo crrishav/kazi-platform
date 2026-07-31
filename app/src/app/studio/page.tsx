@@ -8,12 +8,14 @@ import { useSearchParams } from 'next/navigation';
 import {
   Upload, ArrowRight, RotateCw, Minus, Plus, ChevronDown, ChevronUp, X, Type,
   Shirt, Layers, Palette, ImagePlus, PoundSterling, BookmarkPlus, Trash2,
+  MoreVertical, Copy, BringToFront, SendToBack,
 } from 'lucide-react';
 import { useSmoothScroll } from '@/hooks/useSmoothScroll';
 import {
   type DesignLayer, type DesignSide, type ImageDesignLayer, type TextDesignLayer,
-  createImageLayer, createTextLayer, TEXT_FONTS,
+  createImageLayer, createTextLayer, TEXT_FONTS, clamp,
 } from '@/lib/design-layers';
+import type { RotateRequest } from '@/components/GarmentViewer';
 
 const MODELS_READY = true;
 
@@ -57,6 +59,13 @@ const COLOURS = [
 const VOLUME_TIERS: [number, number][] = [[50, 10.20], [100, 7.80], [200, 6.00], [500, 4.50], [1000, 3.20]];
 
 type PanelId = 'garment' | 'fabric' | 'colour' | 'design' | 'quantity';
+type LayerOrderAction = 'front' | 'forward' | 'backward' | 'back';
+
+interface ContextMenuState {
+  layerId: string;
+  x: number;
+  y: number;
+}
 
 interface SavedDesign {
   id: string;
@@ -112,7 +121,7 @@ function ConfigPanel({
   headerAction?: React.ReactNode;
 }) {
   return (
-    <div className={`absolute bottom-24 ${side === 'left' ? 'left-4 sm:left-6' : 'right-4 sm:right-6'} w-[300px] max-h-[min(70vh,540px)] bg-white border border-rule rounded-xl shadow-xl flex flex-col overflow-hidden z-20`}>
+    <div className={`absolute bottom-24 ${side === 'left' ? 'left-4 sm:left-6' : 'right-4 sm:right-6'} w-[calc(100vw-2rem)] sm:w-[300px] max-h-[min(60vh,540px)] sm:max-h-[min(70vh,540px)] bg-white border border-rule rounded-xl shadow-xl flex flex-col overflow-hidden z-20`}>
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-rule shrink-0">
         <span className="font-cinzel text-sm text-espresso">{title}</span>
         <div className="flex items-center gap-3 shrink-0">
@@ -126,6 +135,47 @@ function ConfigPanel({
         {children}
       </div>
     </div>
+  );
+}
+
+const LAYER_MENU_ITEMS: { action: LayerOrderAction | 'duplicate' | 'delete'; label: string; icon: typeof Copy; divider?: boolean; danger?: boolean }[] = [
+  { action: 'front',     label: 'Bring to Front', icon: BringToFront },
+  { action: 'forward',   label: 'Bring Forward',  icon: ChevronUp },
+  { action: 'backward',  label: 'Send Backward',  icon: ChevronDown },
+  { action: 'back',      label: 'Send to Back',   icon: SendToBack },
+  { action: 'duplicate', label: 'Duplicate',      icon: Copy, divider: true },
+  { action: 'delete',    label: 'Delete',         icon: Trash2, danger: true },
+];
+
+function LayerContextMenu({
+  x, y, onClose, onAction,
+}: {
+  x: number;
+  y: number;
+  onClose: () => void;
+  onAction: (action: LayerOrderAction | 'duplicate' | 'delete') => void;
+}) {
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose(); }} />
+      <div
+        className="fixed z-50 w-44 bg-white border border-rule rounded-lg shadow-xl py-1.5 overflow-hidden"
+        style={{ left: x, top: y }}
+      >
+        {LAYER_MENU_ITEMS.map(({ action, label, icon: Icon, divider, danger }) => (
+          <button
+            key={action}
+            onClick={() => { onAction(action); onClose(); }}
+            className={`flex items-center gap-2.5 w-full text-left px-3 py-2 font-inter text-xs transition-colors ${
+              divider ? 'border-t border-rule-light mt-1 pt-2.5' : ''
+            } ${danger ? 'text-red-500 hover:bg-red-50' : 'text-espresso hover:bg-cream/60'}`}
+          >
+            <Icon size={13} strokeWidth={1.5} />
+            {label}
+          </button>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -143,6 +193,8 @@ function StudioPageInner() {
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [collection, setCollection] = useState<SavedDesign[]>([]);
   const [showCollection, setShowCollection] = useState(false);
+  const [rotateRequest, setRotateRequest] = useState<RotateRequest | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
   // Pre-fill garment and colour from query params (e.g. /studio?garment=hoodie&colour=%231B3D2A)
   useEffect(() => {
@@ -160,17 +212,24 @@ function StudioPageInner() {
     setActivePanel(p => (p === id ? null : id));
   }
 
-  function switchSide(side: DesignSide) {
+  // activeSide tracks whatever the camera is actually facing (see handleFacingSideChange) —
+  // this just asks the viewer to spin to a side; the panel follows once it arrives.
+  function requestRotateToSide(side: DesignSide) {
+    if (side === activeSide) return;
+    setRotateRequest({ side, nonce: Date.now() });
+  }
+
+  function handleFacingSideChange(side: DesignSide) {
     setActiveSide(side);
-    setSelectedLayerId(null);
+    setSelectedLayerId(cur => {
+      if (!cur) return cur;
+      const layer = layers.find(l => l.id === cur);
+      return layer && layer.side !== side ? null : cur;
+    });
   }
 
   function selectLayer(id: string | null) {
     setSelectedLayerId(id);
-    if (id) {
-      const layer = layers.find(l => l.id === id);
-      if (layer) setActiveSide(layer.side);
-    }
   }
 
   function updateLayer(id: string, patch: Partial<Pick<DesignLayer, 'x' | 'y' | 'width' | 'height'>>) {
@@ -188,6 +247,74 @@ function StudioPageInner() {
       return prev.filter(l => l.id !== id);
     });
     setSelectedLayerId(cur => (cur === id ? null : cur));
+  }
+
+  function duplicateLayer(id: string) {
+    const copyId = crypto.randomUUID();
+    setLayers(prev => {
+      const idx = prev.findIndex(l => l.id === id);
+      if (idx === -1) return prev;
+      const original = prev[idx];
+      const copy: DesignLayer = {
+        ...original,
+        id: copyId,
+        x: clamp(original.x + 0.04, 0, 1),
+        y: clamp(original.y + 0.04, 0, 1),
+      };
+      const next = [...prev];
+      next.splice(idx + 1, 0, copy);
+      return next;
+    });
+    setSelectedLayerId(copyId);
+  }
+
+  // Stacking order is just array order (composeDesignCanvas + the ghost-polygon overlay both
+  // render in array order, later = on top) — reordering only ever happens within the same side,
+  // so the other side's layers keep their absolute slots untouched.
+  function reorderLayer(id: string, action: LayerOrderAction) {
+    setLayers(prev => {
+      const target = prev.find(l => l.id === id);
+      if (!target) return prev;
+      const slots: number[] = [];
+      const sameSide: DesignLayer[] = [];
+      prev.forEach((l, i) => {
+        if (l.side === target.side) {
+          slots.push(i);
+          sameSide.push(l);
+        }
+      });
+      const from = sameSide.findIndex(l => l.id === id);
+      let to = from;
+      if (action === 'front') to = sameSide.length - 1;
+      else if (action === 'back') to = 0;
+      else if (action === 'forward') to = Math.min(from + 1, sameSide.length - 1);
+      else if (action === 'backward') to = Math.max(from - 1, 0);
+      if (to === from) return prev;
+
+      const [moved] = sameSide.splice(from, 1);
+      sameSide.splice(to, 0, moved);
+      const next = [...prev];
+      slots.forEach((slot, i) => { next[slot] = sameSide[i]; });
+      return next;
+    });
+  }
+
+  function openLayerContextMenu(id: string, clientX: number, clientY: number) {
+    const MENU_W = 176;
+    const MENU_H = 232;
+    setContextMenu({
+      layerId: id,
+      x: Math.min(clientX, window.innerWidth - MENU_W - 8),
+      y: Math.min(clientY, window.innerHeight - MENU_H - 8),
+    });
+  }
+
+  function handleLayerMenuAction(action: LayerOrderAction | 'duplicate' | 'delete') {
+    const id = contextMenu?.layerId;
+    if (!id) return;
+    if (action === 'duplicate') duplicateLayer(id);
+    else if (action === 'delete') deleteLayer(id);
+    else reorderLayer(id, action);
   }
 
   async function handleImageInput(e: React.ChangeEvent<HTMLInputElement>) {
@@ -250,7 +377,7 @@ function StudioPageInner() {
     <main className="h-[100dvh] overflow-hidden bg-white relative">
       <Navigation />
 
-      <div className="absolute inset-0 pt-[80px]">
+      <div className="absolute inset-0 pt-[112px]">
         <div className="relative w-full h-full bg-cream/30 overflow-hidden">
 
           {/* Canvas */}
@@ -265,6 +392,9 @@ function StudioPageInner() {
                 onSelectLayer={selectLayer}
                 onUpdateLayer={updateLayer}
                 onDeleteLayer={deleteLayer}
+                onLayerContextMenu={openLayerContextMenu}
+                onFacingSideChange={handleFacingSideChange}
+                rotateRequest={rotateRequest}
               />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center gap-5">
@@ -278,18 +408,20 @@ function StudioPageInner() {
           </div>
 
           {/* Live summary — top left */}
-          <div className="absolute top-4 left-4 sm:left-6 z-10 flex items-center gap-2 px-3.5 py-2 bg-white/90 backdrop-blur-sm border border-rule rounded-lg">
-            <span className="font-cinzel text-xs text-espresso whitespace-nowrap">{selectedGarment?.label ?? garment}</span>
-            <span className="text-rule">·</span>
-            <span className="font-inter text-[10px] tracking-nav text-text-muted uppercase whitespace-nowrap truncate max-w-[160px] sm:max-w-none">
+          <div className="absolute top-4 left-4 sm:left-6 z-10 flex items-center gap-1.5 sm:gap-2 max-w-[60vw] sm:max-w-none px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-white/90 backdrop-blur-sm border border-rule rounded-lg">
+            <span className="font-cinzel text-xs text-espresso whitespace-nowrap shrink-0">{selectedGarment?.label ?? garment}</span>
+            <span className="text-rule shrink-0">·</span>
+            <span className="font-inter text-[10px] tracking-nav text-text-muted uppercase whitespace-nowrap truncate max-w-[90px] sm:max-w-none">
               {selectedFabric?.label ?? fabric} · {selectedColour?.label ?? colour}
             </span>
           </div>
 
           {/* Live price — top right */}
-          <div className="absolute top-4 right-4 sm:right-6 z-10 flex items-baseline gap-1.5 px-3.5 py-2 bg-white/90 backdrop-blur-sm border border-rule rounded-lg">
+          <div className="absolute top-4 right-4 sm:right-6 z-10 flex items-baseline gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-white/90 backdrop-blur-sm border border-rule rounded-lg">
             <span className="font-cinzel text-sm text-accent-warm">£{ppu.toFixed(2)}</span>
-            <span className="font-inter text-[9px] text-text-light uppercase whitespace-nowrap">/unit · {qty} units</span>
+            <span className="font-inter text-[9px] text-text-light uppercase whitespace-nowrap">
+              /unit<span className="hidden sm:inline"> · {qty} units</span>
+            </span>
           </div>
 
           {/* Rotate hint */}
@@ -376,10 +508,11 @@ function StudioPageInner() {
             <ConfigPanel title="Design" onClose={() => setActivePanel(null)}>
               <div className="flex border border-rule mb-4 overflow-hidden rounded-md">
                 {(['front', 'back'] as const).map(side => (
-                  <button key={side} onClick={() => switchSide(side)}
-                    className={`flex-1 py-2 font-inter text-[10px] tracking-nav uppercase transition-colors ${
+                  <button key={side} onClick={() => requestRotateToSide(side)} title={`Rotate to ${side}`}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 font-inter text-[10px] tracking-nav uppercase transition-colors ${
                       activeSide === side ? 'bg-espresso text-cream' : 'bg-white text-text-muted hover:text-espresso'
                     }`}>
+                    {activeSide !== side && <RotateCw size={10} strokeWidth={1.5} />}
                     {side}
                   </button>
                 ))}
@@ -421,12 +554,15 @@ function StudioPageInner() {
                         <span className="flex-1 min-w-0 font-inter text-xs text-espresso truncate">
                           {layer.type === 'image' ? layer.fileName : (layer.text || 'Text')}
                         </span>
-                        <Trash2
-                          size={13}
-                          strokeWidth={1.5}
-                          className="text-text-muted hover:text-red-500 transition-colors shrink-0"
-                          onClick={(e) => { e.stopPropagation(); deleteLayer(layer.id); }}
-                        />
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Layer options"
+                          className="text-text-muted hover:text-espresso transition-colors shrink-0 p-0.5 -m-0.5"
+                          onClick={(e) => { e.stopPropagation(); openLayerContextMenu(layer.id, e.clientX, e.clientY); }}
+                        >
+                          <MoreVertical size={14} strokeWidth={1.5} />
+                        </span>
                       </button>
 
                       {selectedLayerId === layer.id && layer.type === 'text' && (
@@ -591,33 +727,42 @@ function StudioPageInner() {
             </ConfigPanel>
           )}
 
+          {contextMenu && (
+            <LayerContextMenu
+              x={contextMenu.x}
+              y={contextMenu.y}
+              onClose={() => setContextMenu(null)}
+              onAction={handleLayerMenuAction}
+            />
+          )}
+
           {/* ── Floating dock ── */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
-            <div className="flex items-center gap-1 bg-espresso rounded-2xl px-2 py-2 shadow-xl">
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 max-w-[calc(100vw-1.5rem)]">
+            <div className="flex items-center gap-0.5 sm:gap-1 bg-espresso rounded-2xl px-1.5 sm:px-2 py-2 shadow-xl overflow-x-auto">
               {DOCK_ITEMS.map(({ id, label, icon: Icon }) => (
                 <button key={id} onClick={() => togglePanel(id)} title={label} aria-label={label}
                   aria-pressed={activePanel === id}
-                  className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors duration-150 ${
+                  className={`w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-lg transition-colors duration-150 ${
                     activePanel === id ? 'bg-accent-warm text-cream' : 'text-cream/70 hover:bg-cream/10 hover:text-cream'
                   }`}>
                   <Icon size={17} strokeWidth={1.5} />
                 </button>
               ))}
 
-              <div className="w-px h-6 bg-cream/15 mx-1.5" />
+              <div className="w-px h-6 bg-cream/15 mx-1 sm:mx-1.5 shrink-0" />
 
               <button onClick={addToCollection} title="Add to collection" aria-label="Add to collection"
                 aria-pressed={showCollection}
-                className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors duration-150 ${
+                className={`w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-lg transition-colors duration-150 ${
                   showCollection ? 'bg-accent-warm text-cream' : 'text-cream/70 hover:bg-cream/10 hover:text-cream'
                 }`}>
                 <BookmarkPlus size={17} strokeWidth={1.5} />
               </button>
 
-              <div className="w-px h-6 bg-cream/15 mx-1.5" />
+              <div className="w-px h-6 bg-cream/15 mx-1 sm:mx-1.5 shrink-0" />
 
               <Link href={quoteHref} title="Request a Quote"
-                className="flex items-center gap-1.5 h-10 pl-4 pr-3.5 rounded-lg bg-accent-warm text-cream font-inter text-[11px] tracking-nav uppercase hover:bg-accent-warm/90 transition-colors duration-150 whitespace-nowrap">
+                className="flex items-center gap-1.5 h-9 sm:h-10 pl-3.5 pr-3 sm:pl-4 sm:pr-3.5 rounded-lg bg-accent-warm text-cream font-inter text-[11px] tracking-nav uppercase hover:bg-accent-warm/90 transition-colors duration-150 whitespace-nowrap shrink-0">
                 Quote <ArrowRight size={13} strokeWidth={1.5} />
               </Link>
             </div>

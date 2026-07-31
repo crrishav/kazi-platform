@@ -57,10 +57,26 @@ interface Bridge {
   anchors: Partial<Record<DesignSide, SideAnchor>>
   projected: Record<string, ProjectedLayer>
   dragging: boolean
+  /** Set to animate the group toward this world-space Y rotation; cleared once reached. */
+  spinTarget: number | null
+  /** Whichever side currently faces the camera more directly — recomputed every frame. */
+  facingSide: DesignSide | null
 }
 
 function createBridge(): Bridge {
-  return { camera: null, canvasEl: null, target: null, anchors: {}, projected: {}, dragging: false }
+  return {
+    camera: null, canvasEl: null, target: null, anchors: {}, projected: {}, dragging: false,
+    spinTarget: null, facingSide: null,
+  }
+}
+
+/** Shortest signed angular distance from `from` to `to`, in (-PI, PI]. */
+function shortestAngleDiff(from: number, to: number): number {
+  const twoPi = Math.PI * 2
+  let diff = (to - from) % twoPi
+  if (diff > Math.PI) diff -= twoPi
+  if (diff < -Math.PI) diff += twoPi
+  return diff
 }
 
 function worldAnchor(anchor: SideAnchor, targetMatrixWorld: THREE.Matrix4): WorldAnchor {
@@ -128,6 +144,9 @@ function GarmentMesh({
   const decalTextures = useRef<Partial<Record<DesignSide, THREE.CanvasTexture>>>({})
   const lastComposedLayers = useRef<Partial<Record<DesignSide, DesignLayer[]>>>({})
   const imageCache = useRef<Map<string, HTMLImageElement>>(new Map())
+  const swayBase = useRef(0)
+  const swayStartTime = useRef(0)
+  const wasInterrupted = useRef(true)
   const { camera, size, gl } = useThree()
 
   useEffect(() => {
@@ -173,20 +192,41 @@ function GarmentMesh({
     group.updateWorldMatrix(true, true)
 
     const box = new THREE.Box3().setFromObject(group)
-    const shirtWidth = box.max.x - box.min.x
+    const shirtWidth  = box.max.x - box.min.x
+    const shirtHeight = box.max.y - box.min.y
     const midY = (box.min.y + box.max.y) / 2
-    const areaW = shirtWidth * 0.36
-    const areaH = areaW * 1.15
-    const projDepth = Math.max(areaW, areaH) * 0.5
+    const midZ = (box.min.z + box.max.z) / 2
+    const halfDepth = (box.max.z - box.min.z) / 2
 
-    const defs: Record<DesignSide, { pos: THREE.Vector3; rot: THREE.Euler }> = {
+    // Cover the whole front/back panel — shoulders, chest/back and sleeves —
+    // instead of a small centred square.
+    const areaW = shirtWidth * 0.94
+    const areaH = shirtHeight * 0.95
+
+    // A box centred exactly on the surface wastes half its depth in the empty
+    // air in front of the garment, and still misses the sleeves — they trail
+    // back from the shoulder, further from the camera than the chest's
+    // frontmost point. Instead, span each side's box from just outside its
+    // own surface to just past the garment's mid-depth line, so it actually
+    // reaches the sleeves and the curved collar/hem while stopping short of
+    // the opposite panel.
+    const FRONT_MARGIN = halfDepth * 0.08
+    const MID_OVERLAP  = halfDepth * 0.42
+    const frontOuterZ = box.max.z + FRONT_MARGIN
+    const frontInnerZ = midZ - MID_OVERLAP
+    const backOuterZ  = box.min.z - FRONT_MARGIN
+    const backInnerZ  = midZ + MID_OVERLAP
+
+    const defs: Record<DesignSide, { pos: THREE.Vector3; rot: THREE.Euler; depth: number }> = {
       front: {
-        pos: new THREE.Vector3(0, midY + (box.max.y - midY) * 0.25, box.max.z + 0.01),
+        pos: new THREE.Vector3(0, midY, (frontOuterZ + frontInnerZ) / 2),
         rot: new THREE.Euler(0, 0, 0),
+        depth: frontOuterZ - frontInnerZ,
       },
       back: {
-        pos: new THREE.Vector3(0, midY - (box.max.y - box.min.y) * 0.05, box.min.z - 0.01),
+        pos: new THREE.Vector3(0, midY, (backOuterZ + backInnerZ) / 2),
         rot: new THREE.Euler(0, Math.PI, 0),
+        depth: backOuterZ - backInnerZ,
       },
     }
 
@@ -195,7 +235,7 @@ function GarmentMesh({
     const anchors: Partial<Record<DesignSide, SideAnchor>> = {}
 
     ;(['front', 'back'] as const).forEach((side) => {
-      const { pos, rot } = defs[side]
+      const { pos, rot, depth } = defs[side]
       const right = new THREE.Vector3(1, 0, 0).applyEuler(rot)
       const up = new THREE.Vector3(0, 1, 0).applyEuler(rot)
       const normal = new THREE.Vector3(0, 0, 1).applyEuler(rot)
@@ -209,7 +249,7 @@ function GarmentMesh({
         height: areaH,
       }
 
-      const geo = new DecalGeometry(resolvedTarget, pos, rot, new THREE.Vector3(areaW, areaH, projDepth))
+      const geo = new DecalGeometry(resolvedTarget, pos, rot, new THREE.Vector3(areaW, areaH, depth))
       geo.applyMatrix4(invWorld)
 
       // One persistent texture per side, reused for every edit — redraw the canvas and flip
@@ -300,23 +340,49 @@ function GarmentMesh({
     }
   }, [layers])
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, delta) => {
     const group = groupRef.current
     const target = targetRef.current
     if (!group || !target) return
 
-    if (!bridge.current.dragging) {
-      group.rotation.y = Math.sin(clock.elapsedTime * 0.25) * 0.35
+    const interrupted = bridge.current.dragging || bridge.current.spinTarget !== null
+
+    if (bridge.current.spinTarget !== null) {
+      const diff = shortestAngleDiff(group.rotation.y, bridge.current.spinTarget)
+      if (Math.abs(diff) < 0.004) {
+        group.rotation.y = bridge.current.spinTarget
+        bridge.current.spinTarget = null
+      } else {
+        // Ease toward the target rather than jumping — speed scales with the
+        // remaining distance so it starts brisk and settles smoothly.
+        group.rotation.y += diff * Math.min(1, delta * 8)
+      }
+    } else if (!bridge.current.dragging) {
+      // Resume swaying from wherever we currently are (post-drag or post-spin)
+      // instead of snapping to the raw sine value, which would jump.
+      if (wasInterrupted.current) {
+        swayBase.current = group.rotation.y
+        swayStartTime.current = clock.elapsedTime
+      }
+      group.rotation.y = swayBase.current + Math.sin((clock.elapsedTime - swayStartTime.current) * 0.25) * 0.35
     }
+    wasInterrupted.current = interrupted
     group.updateWorldMatrix(true, true)
 
     const proj: Record<string, ProjectedLayer> = {}
+    let bestSide: DesignSide | null = null
+    let bestDot = -Infinity
     ;(['front', 'back'] as const).forEach((side) => {
       const local = bridge.current.anchors[side]
       if (!local) return
       const world = worldAnchor(local, target.matrixWorld)
       const camDir = camera.position.clone().sub(world.position).normalize()
-      const facing = world.normal.dot(camDir) > 0.1
+      const dot = world.normal.dot(camDir)
+      const facing = dot > 0.1
+      if (dot > bestDot) {
+        bestDot = dot
+        bestSide = side
+      }
 
       for (const layer of layers) {
         if (layer.side !== side) continue
@@ -341,6 +407,7 @@ function GarmentMesh({
       }
     })
     bridge.current.projected = proj
+    bridge.current.facingSide = bestSide
   })
 
   return (
@@ -358,6 +425,7 @@ function LayerHandles({
   onSelectLayer,
   onUpdateLayer,
   onDeleteLayer,
+  onLayerContextMenu,
 }: {
   bridge: React.MutableRefObject<Bridge>
   layers: DesignLayer[]
@@ -366,6 +434,7 @@ function LayerHandles({
   onSelectLayer: (id: string | null) => void
   onUpdateLayer: (id: string, patch: Partial<Pick<DesignLayer, 'x' | 'y' | 'width' | 'height'>>) => void
   onDeleteLayer: (id: string) => void
+  onLayerContextMenu?: (id: string, clientX: number, clientY: number) => void
 }) {
   const outlineRef = useRef<SVGPolygonElement | null>(null)
   const handleRefs = useRef<Map<string, HTMLDivElement>>(new Map())
@@ -448,6 +517,7 @@ function LayerHandles({
   function beginMove(e: ReactPointerEvent<SVGPolygonElement>) {
     if (!selected) return
     e.stopPropagation()
+    if (e.button !== 0) return // right/middle click: stop propagation only, let context-menu handle it
     e.preventDefault()
     const side = selected.side
     const start = screenToLocal(bridge.current, side, e.clientX, e.clientY)
@@ -476,6 +546,7 @@ function LayerHandles({
   function beginResize(e: ReactPointerEvent<HTMLDivElement>, dx: -1 | 0 | 1, dy: -1 | 0 | 1) {
     if (!selected) return
     e.stopPropagation()
+    if (e.button !== 0) return
     e.preventDefault()
     const side = selected.side
     const fixedX = dx === 0 ? null : dx > 0 ? selected.x - selected.width / 2 : selected.x + selected.width / 2
@@ -510,7 +581,7 @@ function LayerHandles({
   }
 
   return (
-    <div className="absolute inset-0 overflow-hidden">
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
       <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ overflow: 'visible' }}>
         {sideLayers.map((l) => (
           <polygon
@@ -530,6 +601,12 @@ function LayerHandles({
               e.stopPropagation()
               onSelectLayer(l.id)
             }}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onSelectLayer(l.id)
+              onLayerContextMenu?.(l.id, e.clientX, e.clientY)
+            }}
           />
         ))}
         <polygon
@@ -541,6 +618,11 @@ function LayerHandles({
           strokeWidth={1.5}
           style={{ opacity: 0, transition: 'opacity 150ms ease', cursor: 'move', pointerEvents: 'none', touchAction: 'none' }}
           onPointerDown={beginMove}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            if (selected) onLayerContextMenu?.(selected.id, e.clientX, e.clientY)
+          }}
         />
       </svg>
 
@@ -580,6 +662,12 @@ function LayerHandles({
   )
 }
 
+export interface RotateRequest {
+  side: DesignSide
+  /** Bump this (e.g. Date.now()) so the same side can be requested twice in a row. */
+  nonce: number
+}
+
 export default function GarmentViewer({
   garment,
   colour,
@@ -589,6 +677,9 @@ export default function GarmentViewer({
   onSelectLayer = () => {},
   onUpdateLayer = () => {},
   onDeleteLayer = () => {},
+  onLayerContextMenu,
+  onFacingSideChange,
+  rotateRequest,
 }: {
   garment: string
   colour: string
@@ -598,12 +689,55 @@ export default function GarmentViewer({
   onSelectLayer?: (id: string | null) => void
   onUpdateLayer?: (id: string, patch: Partial<Pick<DesignLayer, 'x' | 'y' | 'width' | 'height'>>) => void
   onDeleteLayer?: (id: string) => void
+  onLayerContextMenu?: (id: string, clientX: number, clientY: number) => void
+  /** Called whenever the side actually facing the camera changes (rotation-driven, not a click handler). */
+  onFacingSideChange?: (side: DesignSide) => void
+  /** Set a new object (new `nonce`) to smoothly spin the garment so `side` faces the camera. */
+  rotateRequest?: RotateRequest | null
 }) {
   const url = garmentUrl(garment)
   const bridge = useRef<Bridge>(createBridge())
+  const lastRotateNonce = useRef<number | null>(null)
+  const onFacingSideChangeRef = useRef(onFacingSideChange)
+
+  useEffect(() => {
+    onFacingSideChangeRef.current = onFacingSideChange
+  }, [onFacingSideChange])
+
+  // Report the camera-facing side up to the parent, only when it actually changes.
+  useEffect(() => {
+    let raf = 0
+    let lastReported: DesignSide | null = null
+    const tick = () => {
+      const fs = bridge.current.facingSide
+      if (fs && fs !== lastReported) {
+        lastReported = fs
+        onFacingSideChangeRef.current?.(fs)
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [])
+
+  // Spin the garment so the requested side faces wherever the camera currently is.
+  useEffect(() => {
+    if (!rotateRequest || rotateRequest.nonce === lastRotateNonce.current) return
+    lastRotateNonce.current = rotateRequest.nonce
+    const camera = bridge.current.camera
+    if (!camera) return
+    const camAzimuth = Math.atan2(camera.position.x, camera.position.z)
+    bridge.current.spinTarget = rotateRequest.side === 'back' ? camAzimuth + Math.PI : camAzimuth
+  }, [rotateRequest])
 
   return (
-    <div className="relative w-full h-full">
+    <div
+      className="relative w-full h-full"
+      onPointerDown={() => {
+        onSelectLayer(null)
+        bridge.current.spinTarget = null
+      }}
+    >
       <Canvas
         camera={{ position: [0, 0.2, 2.4], fov: 42 }}
         gl={{ alpha: true, antialias: true }}
@@ -632,6 +766,7 @@ export default function GarmentViewer({
         onSelectLayer={onSelectLayer}
         onUpdateLayer={onUpdateLayer}
         onDeleteLayer={onDeleteLayer}
+        onLayerContextMenu={onLayerContextMenu}
       />
     </div>
   )
