@@ -38,6 +38,18 @@ export const TEXT_FONTS = [
 export const MIN_LAYER_SIZE = 0.05;
 export const DESIGN_CANVAS_PX = 1024;
 
+/** The 8 resize-handle positions around a selected layer's box, as fractions of its own bounds. */
+export const RESIZE_HANDLES: { id: string; dx: -1 | 0 | 1; dy: -1 | 0 | 1; cursor: string }[] = [
+  { id: 'nw', dx: -1, dy: -1, cursor: 'nwse-resize' },
+  { id: 'n', dx: 0, dy: -1, cursor: 'ns-resize' },
+  { id: 'ne', dx: 1, dy: -1, cursor: 'nesw-resize' },
+  { id: 'e', dx: 1, dy: 0, cursor: 'ew-resize' },
+  { id: 'se', dx: 1, dy: 1, cursor: 'nwse-resize' },
+  { id: 's', dx: 0, dy: 1, cursor: 'ns-resize' },
+  { id: 'sw', dx: -1, dy: 1, cursor: 'nesw-resize' },
+  { id: 'w', dx: -1, dy: 0, cursor: 'ew-resize' },
+];
+
 function newId(): string {
   return crypto.randomUUID();
 }

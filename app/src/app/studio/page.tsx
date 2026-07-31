@@ -15,8 +15,11 @@ import {
   createImageLayer, createTextLayer, TEXT_FONTS, clamp,
 } from '@/lib/design-layers';
 import type { RotateRequest } from '@/components/GarmentViewer';
+import Garment2DEditor from '@/components/Garment2DEditor';
 
 const MODELS_READY = true;
+
+type ViewMode = '3d' | '2d';
 
 const GarmentViewer = dynamic(() => import('@/components/GarmentViewer'), {
   ssr: false,
@@ -194,6 +197,7 @@ function StudioPageInner() {
   const [rotateRequest, setRotateRequest] = useState<RotateRequest | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('3d');
 
   // Mobile browsers resize their chrome (address bar, etc.) without reliably firing a
   // `dvh` recompute on a page that never scrolls — measure the true visible height directly
@@ -238,20 +242,29 @@ function StudioPageInner() {
     setActivePanel(p => (p === id ? null : id));
   }
 
-  // activeSide tracks whatever the camera is actually facing (see handleFacingSideChange) —
-  // this just asks the viewer to spin to a side; the panel follows once it arrives.
-  function requestRotateToSide(side: DesignSide) {
-    if (side === activeSide) return;
-    setRotateRequest({ side, nonce: Date.now() });
-  }
-
-  function handleFacingSideChange(side: DesignSide) {
+  function switchActiveSide(side: DesignSide) {
     setActiveSide(side);
     setSelectedLayerId(cur => {
       if (!cur) return cur;
       const layer = layers.find(l => l.id === cur);
       return layer && layer.side !== side ? null : cur;
     });
+  }
+
+  // In 3D, activeSide tracks whatever the camera is actually facing (see
+  // handleFacingSideChange) — this just asks the viewer to spin to a side, and the panel
+  // follows once it arrives. There's no camera in 2D, so just switch immediately.
+  function requestRotateToSide(side: DesignSide) {
+    if (side === activeSide) return;
+    if (viewMode === '2d') {
+      switchActiveSide(side);
+      return;
+    }
+    setRotateRequest({ side, nonce: Date.now() });
+  }
+
+  function handleFacingSideChange(side: DesignSide) {
+    switchActiveSide(side);
   }
 
   function selectLayer(id: string | null) {
@@ -411,7 +424,19 @@ function StudioPageInner() {
 
           {/* Canvas */}
           <div className="absolute inset-0 bottom-28">
-            {MODELS_READY ? (
+            {viewMode === '2d' ? (
+              <Garment2DEditor
+                garment={garment}
+                colour={colour}
+                layers={layers}
+                activeSide={activeSide}
+                selectedLayerId={selectedLayerId}
+                onSelectLayer={selectLayer}
+                onUpdateLayer={updateLayer}
+                onDeleteLayer={deleteLayer}
+                onLayerContextMenu={openLayerContextMenu}
+              />
+            ) : MODELS_READY ? (
               <GarmentViewer
                 garment={garment}
                 colour={colour}
@@ -454,7 +479,7 @@ function StudioPageInner() {
           </div>
 
           {/* Rotate hint */}
-          {MODELS_READY && (
+          {MODELS_READY && viewMode === '3d' && (
             <div className="pointer-events-none absolute bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 border border-rule bg-white/85 backdrop-blur-sm rounded-full z-10">
               <RotateCw size={11} className="text-text-light" strokeWidth={1.5} />
               <span className="font-inter text-[9px] tracking-nav text-text-light uppercase">Drag to rotate</span>
@@ -771,6 +796,20 @@ function StudioPageInner() {
             style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
           >
             <div className="flex items-center gap-0.5 sm:gap-1 bg-espresso rounded-2xl px-1.5 sm:px-2 py-2 shadow-xl overflow-x-auto">
+              <div className="flex items-center bg-cream/10 rounded-lg p-0.5 shrink-0" role="group" aria-label="Editing view">
+                {(['3d', '2d'] as const).map((mode) => (
+                  <button key={mode} onClick={() => setViewMode(mode)}
+                    title={mode === '3d' ? '3D model' : '2D mockup'} aria-pressed={viewMode === mode}
+                    className={`px-2.5 h-8 sm:h-9 rounded-md font-inter text-[10px] tracking-nav uppercase transition-colors duration-150 ${
+                      viewMode === mode ? 'bg-accent-warm text-cream' : 'text-cream/70 hover:text-cream'
+                    }`}>
+                    {mode}
+                  </button>
+                ))}
+              </div>
+
+              <div className="w-px h-6 bg-cream/15 mx-1 sm:mx-1.5 shrink-0" />
+
               {DOCK_ITEMS.map(({ id, label, icon: Icon }) => (
                 <button key={id} onClick={() => togglePanel(id)} title={label} aria-label={label}
                   aria-pressed={activePanel === id}

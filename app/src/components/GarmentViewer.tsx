@@ -16,6 +16,7 @@ import {
   clamp,
   MIN_LAYER_SIZE,
   DESIGN_CANVAS_PX,
+  RESIZE_HANDLES,
 } from '@/lib/design-layers'
 
 function garmentUrl(garment: string): string {
@@ -114,16 +115,6 @@ function screenToLocal(bridge: Bridge, side: DesignSide, clientX: number, client
   return { x: lx / anchor.width + 0.5, y: 0.5 - ly / anchor.height }
 }
 
-const HANDLES: { id: string; dx: -1 | 0 | 1; dy: -1 | 0 | 1; cursor: string }[] = [
-  { id: 'nw', dx: -1, dy: -1, cursor: 'nwse-resize' },
-  { id: 'n', dx: 0, dy: -1, cursor: 'ns-resize' },
-  { id: 'ne', dx: 1, dy: -1, cursor: 'nesw-resize' },
-  { id: 'e', dx: 1, dy: 0, cursor: 'ew-resize' },
-  { id: 'se', dx: 1, dy: 1, cursor: 'nwse-resize' },
-  { id: 's', dx: 0, dy: 1, cursor: 'ns-resize' },
-  { id: 'sw', dx: -1, dy: 1, cursor: 'nesw-resize' },
-  { id: 'w', dx: -1, dy: 0, cursor: 'ew-resize' },
-]
 
 function GarmentMesh({
   url,
@@ -653,7 +644,7 @@ function LayerHandles({
         />
       </svg>
 
-      {HANDLES.map((h) => (
+      {RESIZE_HANDLES.map((h) => (
         <div
           key={h.id}
           ref={(el) => {
@@ -661,9 +652,15 @@ function LayerHandles({
             else handleRefs.current.delete(h.id)
           }}
           onPointerDown={(e) => beginResize(e, h.dx, h.dy)}
-          className="absolute top-0 left-0 w-3 h-3 bg-white border border-espresso shadow-sm"
+          // The visible dot stays 12px, but the tappable area is grown to 40px — on mobile a
+          // fingertip can't reliably land on a 12px target, which made resize appear broken
+          // (touches would land on the move-outline underneath instead) while it worked fine
+          // with a mouse cursor on desktop.
+          className="absolute top-0 left-0 w-10 h-10 flex items-center justify-center"
           style={{ opacity: 0, pointerEvents: 'none', cursor: h.cursor, touchAction: 'none' }}
-        />
+        >
+          <div className="w-3 h-3 bg-white border border-espresso shadow-sm" />
+        </div>
       ))}
 
       <div
@@ -672,10 +669,12 @@ function LayerHandles({
           e.stopPropagation()
           if (selected) onDeleteLayer(selected.id)
         }}
-        className="absolute top-0 left-0 w-5 h-5 rounded-full bg-white border border-rule shadow-sm flex items-center justify-center text-espresso hover:border-red-400 hover:text-red-500 transition-colors"
+        className="absolute top-0 left-0 w-9 h-9 flex items-center justify-center"
         style={{ opacity: 0, pointerEvents: 'none', touchAction: 'none' }}
       >
-        <X size={10} strokeWidth={2} />
+        <div className="w-5 h-5 rounded-full bg-white border border-rule shadow-sm flex items-center justify-center text-espresso hover:border-red-400 hover:text-red-500 transition-colors">
+          <X size={10} strokeWidth={2} />
+        </div>
       </div>
 
       <div
