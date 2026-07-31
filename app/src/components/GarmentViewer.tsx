@@ -147,6 +147,7 @@ function GarmentMesh({
   const swayBase = useRef(0)
   const swayStartTime = useRef(0)
   const wasInterrupted = useRef(true)
+  const shirtWidthRef = useRef(0)
   const { camera, size, gl } = useThree()
 
   useEffect(() => {
@@ -202,6 +203,7 @@ function GarmentMesh({
     // instead of a small centred square.
     const areaW = shirtWidth * 0.94
     const areaH = shirtHeight * 0.95
+    shirtWidthRef.current = shirtWidth
 
     // A box centred exactly on the surface wastes half its depth in the empty
     // air in front of the garment, and still misses the sleeves — they trail
@@ -296,6 +298,31 @@ function GarmentMesh({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloned])
+
+  // The base camera (fov 42, z 2.4) is tuned for wide/desktop aspect ratios, where the
+  // garment's *height* is the binding constraint. On a narrow/tall container (mobile
+  // portrait) the derived horizontal FOV shrinks with aspect, so at the same distance the
+  // garment's *width* balloons to fill most of the frame — that's the "too zoomed in" mobile
+  // bug. Only pull the camera back (never in) when the garment's width would otherwise
+  // exceed a comfortable fraction of the frame, preserving the desktop framing untouched.
+  useEffect(() => {
+    const persp = camera as THREE.PerspectiveCamera
+    const shirtW = shirtWidthRef.current
+    if (!shirtW || !size.width || !size.height) return
+    const BASE_Z = 2.4
+    const MAX_WIDTH_FRACTION = 0.5
+    const aspect = size.width / size.height
+    const halfVFov = THREE.MathUtils.degToRad(persp.fov) / 2
+    const baseFrustumWidth = 2 * BASE_Z * Math.tan(halfVFov) * aspect
+    const requiredFrustumWidth = shirtW / MAX_WIDTH_FRACTION
+    const distance = clamp(
+      baseFrustumWidth < requiredFrustumWidth ? BASE_Z * (requiredFrustumWidth / baseFrustumWidth) : BASE_Z,
+      BASE_Z,
+      6,
+    )
+    persp.position.setLength(distance)
+    persp.updateProjectionMatrix()
+  }, [camera, size.width, size.height, cloned])
 
   // Recomposite each side's canvas texture whenever its layers change.
   useEffect(() => {
@@ -753,7 +780,7 @@ export default function GarmentViewer({
         <OrbitControls
           enablePan={false}
           minDistance={1.4}
-          maxDistance={4.5}
+          maxDistance={6.5}
           minPolarAngle={Math.PI / 5}
           maxPolarAngle={Math.PI / 1.6}
         />

@@ -10,7 +10,6 @@ import {
   Shirt, Layers, Palette, ImagePlus, PoundSterling, BookmarkPlus, Trash2,
   MoreVertical, Copy, BringToFront, SendToBack,
 } from 'lucide-react';
-import { useSmoothScroll } from '@/hooks/useSmoothScroll';
 import {
   type DesignLayer, type DesignSide, type ImageDesignLayer, type TextDesignLayer,
   createImageLayer, createTextLayer, TEXT_FONTS, clamp,
@@ -180,7 +179,6 @@ function LayerContextMenu({
 }
 
 function StudioPageInner() {
-  useSmoothScroll();
   const searchParams = useSearchParams();
   const [activePanel, setActivePanel] = useState<PanelId | null>(null);
   const [garment, setGarment]     = useState<string>('t-shirt');
@@ -195,6 +193,34 @@ function StudioPageInner() {
   const [showCollection, setShowCollection] = useState(false);
   const [rotateRequest, setRotateRequest] = useState<RotateRequest | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+
+  // Mobile browsers resize their chrome (address bar, etc.) without reliably firing a
+  // `dvh` recompute on a page that never scrolls — measure the true visible height directly
+  // so the dock can never end up positioned underneath it.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    function updateHeight() {
+      setViewportHeight(Math.round(vv?.height ?? window.innerHeight));
+    }
+    updateHeight();
+    vv?.addEventListener('resize', updateHeight);
+    window.addEventListener('resize', updateHeight);
+    window.addEventListener('orientationchange', updateHeight);
+    return () => {
+      vv?.removeEventListener('resize', updateHeight);
+      window.removeEventListener('resize', updateHeight);
+      window.removeEventListener('orientationchange', updateHeight);
+    };
+  }, []);
+
+  // This page is a fixed, app-like canvas — lock out the rubber-band/overscroll bounce so
+  // an errant swipe can never reveal browser chrome under the fixed dock.
+  useEffect(() => {
+    const prevOverscroll = document.body.style.overscrollBehavior;
+    document.body.style.overscrollBehavior = 'none';
+    return () => { document.body.style.overscrollBehavior = prevOverscroll; };
+  }, []);
 
   // Pre-fill garment and colour from query params (e.g. /studio?garment=hoodie&colour=%231B3D2A)
   useEffect(() => {
@@ -374,7 +400,10 @@ function StudioPageInner() {
   }).toString()}`;
 
   return (
-    <main className="h-[100dvh] overflow-hidden bg-white relative">
+    <main
+      className="overflow-hidden bg-white relative h-[100dvh]"
+      style={viewportHeight ? { height: `${viewportHeight}px` } : undefined}
+    >
       <Navigation />
 
       <div className="absolute inset-0 pt-[112px]">
@@ -737,7 +766,10 @@ function StudioPageInner() {
           )}
 
           {/* ── Floating dock ── */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 max-w-[calc(100vw-1.5rem)]">
+          <div
+            className="absolute left-1/2 -translate-x-1/2 z-20 max-w-[calc(100vw-1.5rem)]"
+            style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
+          >
             <div className="flex items-center gap-0.5 sm:gap-1 bg-espresso rounded-2xl px-1.5 sm:px-2 py-2 shadow-xl overflow-x-auto">
               {DOCK_ITEMS.map(({ id, label, icon: Icon }) => (
                 <button key={id} onClick={() => togglePanel(id)} title={label} aria-label={label}
