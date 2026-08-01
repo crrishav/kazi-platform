@@ -14,14 +14,21 @@ interface GarmentImageMeta {
 // Real flat-lay photography (transparent background), recolored live via an SVG mask + a
 // multiply blend of the chosen colour — same technique real print-on-demand configurators
 // use, so the fabric's actual folds/shading carry through regardless of colour.
+//
+// `area` is the garment's own opaque bounding box within the image (shoulders/sleeves to
+// hem) — not a small centred print zone. Artwork can be dragged and resized across this
+// whole span; Garment2DEditor clips the rendered artwork to the garment's silhouette (via
+// the same image used as a CSS mask), so anything pushed past the fabric edge is cut off
+// rather than spilling onto the transparent background, matching how the 3D decal is
+// naturally bounded by the mesh it's projected onto.
 const GARMENT_IMAGES: Record<'t-shirt' | 'hoodie', Record<DesignSide, GarmentImageMeta>> = {
   't-shirt': {
-    front: { src: '/mockups/tshirt-front.png', width: 1280, height: 669, area: { x: 0.365, y: 0.25, width: 0.27, height: 0.24 } },
-    back:  { src: '/mockups/tshirt-back.png',  width: 1280, height: 669, area: { x: 0.365, y: 0.22, width: 0.27, height: 0.26 } },
+    front: { src: '/mockups/tshirt-front.png', width: 1280, height: 669, area: { x: 0.242, y: 0.161, width: 0.507, height: 0.743 } },
+    back:  { src: '/mockups/tshirt-back.png',  width: 1280, height: 669, area: { x: 0.248, y: 0.146, width: 0.500, height: 0.735 } },
   },
   hoodie: {
-    front: { src: '/mockups/hoodie-front.png', width: 1280, height: 698, area: { x: 0.39, y: 0.31, width: 0.22, height: 0.18 } },
-    back:  { src: '/mockups/hoodie-back.png',  width: 1280, height: 683, area: { x: 0.39, y: 0.32, width: 0.22, height: 0.22 } },
+    front: { src: '/mockups/hoodie-front.png', width: 1280, height: 698, area: { x: 0.113, y: 0.040, width: 0.776, height: 0.898 } },
+    back:  { src: '/mockups/hoodie-back.png',  width: 1280, height: 683, area: { x: 0.127, y: 0.047, width: 0.745, height: 0.887 } },
   },
 };
 

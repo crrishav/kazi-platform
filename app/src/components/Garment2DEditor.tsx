@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { X } from 'lucide-react';
 import {
   type DesignLayer, type DesignSide, type TextDesignLayer,
@@ -165,6 +165,18 @@ export default function Garment2DEditor({
     window.addEventListener('pointerup', onUp);
   }
 
+  const selected = sideLayers.find((l) => l.id === selectedLayerId) ?? null;
+
+  function layerBoxStyle(layer: DesignLayer): CSSProperties {
+    return {
+      left: `${layer.x * 100}%`,
+      top: `${layer.y * 100}%`,
+      width: `${layer.width * 100}%`,
+      height: `${layer.height * 100}%`,
+      transform: 'translate(-50%, -50%)',
+    };
+  }
+
   return (
     <div
       ref={containerRef}
@@ -176,73 +188,91 @@ export default function Garment2DEditor({
           <>
             <GarmentMockup2D garment={garment} side={activeSide} colour={colour} />
 
+            {/* Artwork layer — clipped to the garment's own silhouette (via its alpha), so
+                anything dragged or resized past the fabric edge is cut off instead of
+                spilling onto the transparent background, the same way the 3D decal is
+                bounded by the mesh it projects onto. */}
             <div
-              ref={areaRef}
-              className="absolute"
-              style={{ left: `${areaPct.left}%`, top: `${areaPct.top}%`, width: `${areaPct.width}%`, height: `${areaPct.height}%` }}
+              className="absolute inset-0"
+              style={{
+                WebkitMaskImage: `url(${imageMeta.src})`,
+                maskImage: `url(${imageMeta.src})`,
+                WebkitMaskSize: '100% 100%',
+                maskSize: '100% 100%',
+                WebkitMaskRepeat: 'no-repeat',
+                maskRepeat: 'no-repeat',
+              }}
             >
-              {sideLayers.map((layer) => (
-                <div
-                  key={layer.id}
-                  className="absolute touch-none select-none"
-                  style={{
-                    left: `${layer.x * 100}%`,
-                    top: `${layer.y * 100}%`,
-                    width: `${layer.width * 100}%`,
-                    height: `${layer.height * 100}%`,
-                    transform: 'translate(-50%, -50%)',
-                    cursor: 'move',
-                    outline: selectedLayerId === layer.id ? '1.5px solid #3A7D44' : 'none',
-                  }}
-                  onPointerDown={(e) => beginMove(e, layer)}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onSelectLayer(layer.id);
-                    onLayerContextMenu?.(layer.id, e.clientX, e.clientY);
-                  }}
-                >
-                  {layer.type === 'image' ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={layer.url} alt="" className="w-full h-full object-fill pointer-events-none" draggable={false} />
-                  ) : (
-                    <AutoFitText layer={layer} />
-                  )}
-
-                  {selectedLayerId === layer.id && (
-                    <>
-                      {RESIZE_HANDLES.map((h) => (
-                        <div
-                          key={h.id}
-                          onPointerDown={(e) => beginResize(e, layer, h.dx, h.dy)}
-                          className="absolute w-10 h-10 flex items-center justify-center"
-                          style={{
-                            left: `${((h.dx + 1) / 2) * 100}%`,
-                            top: `${((h.dy + 1) / 2) * 100}%`,
-                            transform: 'translate(-50%, -50%)',
-                            cursor: h.cursor,
-                            touchAction: 'none',
-                          }}
-                        >
-                          <div className="w-3 h-3 bg-white border border-espresso shadow-sm" />
-                        </div>
-                      ))}
-
-                      <button
-                        onPointerDown={(e) => { e.stopPropagation(); onDeleteLayer(layer.id); }}
-                        aria-label="Delete layer"
-                        className="absolute w-9 h-9 flex items-center justify-center"
-                        style={{ left: '100%', top: '0%', transform: 'translate(-50%, -50%)', touchAction: 'none' }}
-                      >
-                        <span className="w-5 h-5 rounded-full bg-white border border-rule shadow-sm flex items-center justify-center text-espresso hover:border-red-400 hover:text-red-500 transition-colors">
-                          <X size={10} strokeWidth={2} />
-                        </span>
-                      </button>
-                    </>
-                  )}
-                </div>
-              ))}
+              <div
+                ref={areaRef}
+                className="absolute"
+                style={{ left: `${areaPct.left}%`, top: `${areaPct.top}%`, width: `${areaPct.width}%`, height: `${areaPct.height}%` }}
+              >
+                {sideLayers.map((layer) => (
+                  <div
+                    key={layer.id}
+                    className="absolute touch-none select-none"
+                    style={{ ...layerBoxStyle(layer), cursor: 'move' }}
+                    onPointerDown={(e) => beginMove(e, layer)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onSelectLayer(layer.id);
+                      onLayerContextMenu?.(layer.id, e.clientX, e.clientY);
+                    }}
+                  >
+                    {layer.type === 'image' ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={layer.url} alt="" className="w-full h-full object-fill pointer-events-none" draggable={false} />
+                    ) : (
+                      <AutoFitText layer={layer} />
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {/* Controls layer — deliberately unmasked, so the selection outline and resize
+                handles stay grabbable even when the artwork itself is clipped near an edge. */}
+            {selected && (
+              <div
+                className="absolute pointer-events-none"
+                style={{ left: `${areaPct.left}%`, top: `${areaPct.top}%`, width: `${areaPct.width}%`, height: `${areaPct.height}%` }}
+              >
+                <div
+                  className="absolute pointer-events-none"
+                  style={{ ...layerBoxStyle(selected), outline: '1.5px solid #3A7D44' }}
+                >
+                  {RESIZE_HANDLES.map((h) => (
+                    <div
+                      key={h.id}
+                      onPointerDown={(e) => beginResize(e, selected, h.dx, h.dy)}
+                      className="absolute w-10 h-10 flex items-center justify-center pointer-events-auto"
+                      style={{
+                        left: `${((h.dx + 1) / 2) * 100}%`,
+                        top: `${((h.dy + 1) / 2) * 100}%`,
+                        transform: 'translate(-50%, -50%)',
+                        cursor: h.cursor,
+                        touchAction: 'none',
+                      }}
+                    >
+                      <div className="w-3 h-3 bg-white border border-espresso shadow-sm" />
+                    </div>
+                  ))}
+
+                  <button
+                    onPointerDown={(e) => { e.stopPropagation(); onDeleteLayer(selected.id); }}
+                    aria-label="Delete layer"
+                    className="absolute w-9 h-9 flex items-center justify-center pointer-events-auto"
+                    style={{ left: '100%', top: '0%', transform: 'translate(-50%, -50%)', touchAction: 'none' }}
+                  >
+                    <span className="w-5 h-5 rounded-full bg-white border border-rule shadow-sm flex items-center justify-center text-espresso hover:border-red-400 hover:text-red-500 transition-colors">
+                      <X size={10} strokeWidth={2} />
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
