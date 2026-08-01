@@ -3,11 +3,11 @@
 import Navigation from '@/components/Navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  Upload, ArrowRight, RotateCw, Plus, ChevronDown, ChevronUp, X, Type,
-  Shirt, Layers, Palette, ImagePlus, BookmarkPlus, Trash2,
+  Upload, ArrowRight, RotateCw, Plus, Minus, ChevronDown, ChevronUp, X, Type,
+  Shirt, Layers, Palette, ImagePlus, BookmarkPlus, Trash2, Calculator, Check,
   MoreVertical, Copy, BringToFront, SendToBack,
 } from 'lucide-react';
 import {
@@ -93,6 +93,16 @@ function pricePerUnit(qty: number): number {
   return 10.20;
 }
 
+// Print surcharges layered on top of the base per-unit garment price when estimating a
+// saved design: each placed image/text element is its own print run, and an all-over
+// pattern covers the whole panel rather than a single spot, hence the bigger flat add-on.
+const PER_ASSET_PRINT_COST = 0.75;
+const PATTERN_PRINT_COST = 1.50;
+
+function estimateUnitPrice(entry: SavedDesign): number {
+  return pricePerUnit(entry.qty) + entry.layers.length * PER_ASSET_PRINT_COST + (entry.pattern ? PATTERN_PRINT_COST : 0);
+}
+
 async function fileToAspectRatio(url: string): Promise<number> {
   return new Promise((resolve) => {
     const img = new Image();
@@ -123,16 +133,23 @@ async function cloneObjectUrl(url: string | null): Promise<string | null> {
 }
 
 function ConfigPanel({
-  title, onClose, children, side = 'left', headerAction,
+  title, onClose, children, side = 'left', anchor = 'bottom', headerAction, footer, rootRef,
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
   side?: 'left' | 'right';
+  /** 'top' pins the panel just under a top-row trigger (e.g. the Estimate button) instead
+   *  of the usual dock-anchored 'bottom'. */
+  anchor?: 'top' | 'bottom';
   headerAction?: React.ReactNode;
+  footer?: React.ReactNode;
+  /** Exposes the panel's own root node so a sibling (e.g. the front/back switch) can measure
+   *  where it actually sits — its rendered height varies with content. */
+  rootRef?: React.Ref<HTMLDivElement>;
 }) {
   return (
-    <div className={`absolute bottom-24 ${side === 'left' ? 'left-4 sm:left-6' : 'right-4 sm:right-6'} w-[calc(100vw-2rem)] sm:w-[300px] max-h-[min(60vh,540px)] sm:max-h-[min(70vh,540px)] bg-white border border-rule rounded-xl shadow-xl flex flex-col overflow-hidden z-20`}>
+    <div ref={rootRef} className={`absolute ${anchor === 'top' ? 'top-16 sm:top-20' : 'bottom-24'} ${side === 'left' ? 'left-4 sm:left-6' : 'right-4 sm:right-6'} w-[calc(100vw-2rem)] sm:w-[300px] max-h-[min(60vh,540px)] sm:max-h-[min(70vh,540px)] bg-white border border-rule rounded-xl shadow-xl flex flex-col overflow-hidden z-20`}>
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-rule shrink-0">
         <span className="font-cinzel text-sm text-espresso">{title}</span>
         <div className="flex items-center gap-3 shrink-0">
@@ -142,9 +159,14 @@ function ConfigPanel({
           </button>
         </div>
       </div>
-      <div className="min-h-0 overflow-y-auto px-4 py-4">
+      <div className="min-h-0 overflow-y-auto px-4 py-4 flex-1">
         {children}
       </div>
+      {footer && (
+        <div className="shrink-0 border-t border-rule px-4 py-3">
+          {footer}
+        </div>
+      )}
     </div>
   );
 }
@@ -204,10 +226,15 @@ function StudioPageInner() {
   const [qty, setQty]             = useState<number>(100);
   const [collection, setCollection] = useState<SavedDesign[]>([]);
   const [showCollection, setShowCollection] = useState(false);
+  const [showEstimate, setShowEstimate] = useState(false);
+  const [estimateExcluded, setEstimateExcluded] = useState<Set<string>>(new Set());
   const [rotateRequest, setRotateRequest] = useState<RotateRequest | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('3d');
+  const canvasAreaRef = useRef<HTMLDivElement>(null);
+  const leftPanelRef = useRef<HTMLDivElement>(null);
+  const [switchTop, setSwitchTop] = useState<number | null>(null);
 
   // Mobile browsers resize their chrome (address bar, etc.) without reliably firing a
   // `dvh` recompute on a page that never scrolls — measure the true visible height directly
@@ -235,6 +262,31 @@ function StudioPageInner() {
     document.body.style.overscrollBehavior = 'none';
     return () => { document.body.style.overscrollBehavior = prevOverscroll; };
   }, []);
+
+  // While a left-anchored tab panel (Garment/Fabric/Colour/Design) is open, the front/back
+  // switch docks just above its actual top edge instead of a guessed fixed offset — panel
+  // height varies with content (a fabric list vs. an expanded layer editor), so this is
+  // measured directly rather than assumed.
+  useEffect(() => {
+    if (!activePanel) { setSwitchTop(null); return; }
+    const panelEl = leftPanelRef.current;
+    const areaEl = canvasAreaRef.current;
+    if (!panelEl || !areaEl) { setSwitchTop(null); return; }
+
+    const SWITCH_CLEARANCE = 52; // switch's own rendered height + a small gap
+    const MIN_TOP = 64; // never rises above the live summary chip
+
+    function measure() {
+      const panelTop = panelEl!.getBoundingClientRect().top;
+      const areaTop = areaEl!.getBoundingClientRect().top;
+      setSwitchTop(Math.max(MIN_TOP, panelTop - areaTop - SWITCH_CLEARANCE));
+    }
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(panelEl);
+    return () => ro.disconnect();
+  }, [activePanel, viewportHeight]);
 
   // Pre-fill garment and colour from query params (e.g. /studio?garment=hoodie&colour=%231B3D2A)
   useEffect(() => {
@@ -514,6 +566,25 @@ function StudioPageInner() {
       if (target?.pattern) URL.revokeObjectURL(target.pattern);
       return prev.filter(entry => entry.id !== id);
     });
+    setEstimateExcluded(prev => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleEstimateEntry(id: string) {
+    setEstimateExcluded(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function updateCollectionQty(id: string, qty: number) {
+    const clamped = clamp(qty, 10, 5000);
+    setCollection(prev => prev.map(entry => (entry.id === id ? { ...entry, qty: clamped } : entry)));
   }
 
   const selectedColour    = COLOURS.find(c => c.hex.toLowerCase() === colour.toLowerCase());
@@ -522,6 +593,11 @@ function StudioPageInner() {
   const ppu      = pricePerUnit(qty);
   const totalGBP = (ppu * qty).toFixed(2);
   const sideLayers = layers.filter(l => l.side === activeSide);
+  const currentThumb = layers.find((l): l is ImageDesignLayer => l.type === 'image');
+
+  const estimateEntries   = collection.filter(entry => !estimateExcluded.has(entry.id));
+  const estimateTotalQty  = estimateEntries.reduce((sum, entry) => sum + entry.qty, 0);
+  const estimateGrandTotal = estimateEntries.reduce((sum, entry) => sum + estimateUnitPrice(entry) * entry.qty, 0);
 
   const frontCount = layers.filter(l => l.side === 'front').length;
   const backCount  = layers.filter(l => l.side === 'back').length;
@@ -544,7 +620,7 @@ function StudioPageInner() {
       <Navigation />
 
       <div className="absolute inset-0 pt-[112px]">
-        <div className="relative w-full h-full bg-cream/30 overflow-hidden">
+        <div ref={canvasAreaRef} className="relative w-full h-full bg-cream/30 overflow-hidden">
 
           {/* Canvas */}
           <div className="absolute inset-0 bottom-28">
@@ -598,26 +674,37 @@ function StudioPageInner() {
             </span>
           </div>
 
-          {/* Live price — top right */}
-          <div className="absolute top-4 right-4 sm:right-6 z-10 flex items-baseline gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-white/90 backdrop-blur-sm border border-rule rounded-lg">
-            <span className="font-cinzel text-sm text-accent-warm">£{ppu.toFixed(2)}</span>
-            <span className="font-inter text-[9px] text-text-light uppercase whitespace-nowrap">
-              /unit<span className="hidden sm:inline"> · {qty} units</span>
-            </span>
-          </div>
-
-          {/* Front/Back — a single sliding switch, right edge. Centered vertically by default;
-              a panel opening (Fabric, etc.) can grow nearly full-width on mobile and would
-              otherwise sit right under it, so it steps up out of the way while one is open. */}
-          <div
-            className={`absolute right-4 sm:right-6 z-10 transition-[top] duration-200 ease-out ${
-              activePanel || showCollection ? 'top-16 sm:top-20' : 'top-1/2 -translate-y-1/2'
+          {/* Estimate — top right; expands into a per-design pricing breakdown for the
+              collection instead of just quoting the current garment's per-unit price. */}
+          <button
+            onClick={() => { setShowEstimate(v => !v); setShowCollection(false); }}
+            title="Estimate pricing for your saved designs" aria-label="Estimate pricing"
+            aria-pressed={showEstimate}
+            className={`absolute top-4 right-4 sm:right-6 z-10 flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 border rounded-lg transition-colors duration-150 ${
+              showEstimate ? 'bg-espresso border-espresso' : 'bg-white/90 backdrop-blur-sm border-rule hover:border-espresso/40'
             }`}
           >
-            <div className="relative flex p-1 w-[5.75rem] sm:w-[6.5rem] bg-white/90 backdrop-blur-sm border border-rule rounded-full shadow-xl" role="group" aria-label="Front or back">
+            <Calculator size={13} strokeWidth={1.5} className={showEstimate ? 'text-cream' : 'text-accent-warm'} />
+            <span className={`font-inter text-[10px] tracking-nav uppercase whitespace-nowrap ${showEstimate ? 'text-cream' : 'text-espresso'}`}>
+              Estimate
+            </span>
+          </button>
+
+          {/* Front/Back — a single sliding switch, left edge, styled to match the white
+              config panels. Centered vertically by default; a panel opening (Fabric, etc.)
+              is also left-anchored and would grow right under it, so it docks just above
+              that panel's own (measured) top edge while one is open, instead of either
+              getting buried underneath or jumping all the way to the top of the screen. */}
+          <div
+            className={`absolute left-4 sm:left-6 z-10 transition-[top] duration-200 ease-out ${
+              switchTop === null ? 'top-1/2 -translate-y-1/2' : ''
+            }`}
+            style={switchTop !== null ? { top: `${switchTop}px` } : undefined}
+          >
+            <div className="relative flex p-1 w-[5.75rem] sm:w-[6.5rem] bg-white border border-rule rounded-full shadow-xl" role="group" aria-label="Front or back">
               <span
                 aria-hidden
-                className="absolute left-1 top-1 bottom-1 w-[calc(50%-0.25rem)] rounded-full bg-accent-warm transition-transform duration-200 ease-out"
+                className="absolute left-1 top-1 bottom-1 w-[calc(50%-0.25rem)] rounded-full bg-espresso transition-transform duration-200 ease-out"
                 style={{ transform: activeSide === 'back' ? 'translateX(100%)' : 'translateX(0%)' }}
               />
               {(['front', 'back'] as const).map(side => (
@@ -642,7 +729,7 @@ function StudioPageInner() {
 
           {/* ── Contextual panel ── */}
           {activePanel === 'garment' && (
-            <ConfigPanel title="Garment" onClose={() => setActivePanel(null)}>
+            <ConfigPanel title="Garment" onClose={() => setActivePanel(null)} rootRef={leftPanelRef}>
               <div className="space-y-2.5">
                 {GARMENT_TYPES.map(g => (
                   <button key={g.id} onClick={() => setGarment(g.id)}
@@ -662,7 +749,7 @@ function StudioPageInner() {
           )}
 
           {activePanel === 'fabric' && (
-            <ConfigPanel title="Fabric" onClose={() => setActivePanel(null)}>
+            <ConfigPanel title="Fabric" onClose={() => setActivePanel(null)} rootRef={leftPanelRef}>
               <div className="space-y-2.5">
                 {FABRICS.map(f => (
                   <button key={f.id} onClick={() => setFabric(f.id)}
@@ -684,7 +771,7 @@ function StudioPageInner() {
           )}
 
           {activePanel === 'colour' && (
-            <ConfigPanel title="Colour" onClose={() => setActivePanel(null)}>
+            <ConfigPanel title="Colour" onClose={() => setActivePanel(null)} rootRef={leftPanelRef}>
               <div className="flex items-center gap-3 p-3 border border-rule mb-4">
                 <input
                   type="color"
@@ -754,7 +841,7 @@ function StudioPageInner() {
           )}
 
           {activePanel === 'design' && (
-            <ConfigPanel title="Design" onClose={() => setActivePanel(null)}>
+            <ConfigPanel title="Design" onClose={() => setActivePanel(null)} rootRef={leftPanelRef}>
               <div className="grid grid-cols-2 gap-2.5 mb-4">
                 <label className="relative flex flex-col items-center justify-center gap-1.5 py-4 border-2 border-dashed border-rule hover:border-accent-warm/50 bg-white cursor-pointer transition-all duration-200">
                   <input type="file" accept=".png,.jpg,.jpeg,.svg,.webp" onChange={handleImageInput} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
@@ -866,53 +953,166 @@ function StudioPageInner() {
               title={`Collection${collection.length ? ` (${collection.length})` : ''}`}
               onClose={() => setShowCollection(false)}
               side="right"
-              headerAction={
-                <button onClick={addToCollection} title="Save current design" aria-label="Save current design"
-                  className="text-text-muted hover:text-accent-warm transition-colors">
-                  <Plus size={15} strokeWidth={1.5} />
+            >
+              <div className="space-y-2.5">
+                {/* Current design — always shown live, so the piece on the canvas right now
+                    is never hidden behind a save step. */}
+                <div>
+                  <p className="font-inter text-[9px] tracking-nav text-accent-warm uppercase mb-1.5">Currently editing</p>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setShowCollection(false)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowCollection(false); } }}
+                    title="Back to editing"
+                    className="flex items-center gap-3 border border-espresso bg-espresso/5 p-2.5 cursor-pointer"
+                  >
+                    <div className="relative w-11 h-11 border border-rule shrink-0 overflow-hidden" style={{ backgroundColor: colour }}>
+                      {pattern ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={pattern} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                      ) : currentThumb && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={currentThumb.url} alt="" className="absolute inset-0 w-full h-full object-contain p-1" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-cinzel text-xs text-espresso truncate">{selectedGarment?.label ?? garment}</p>
+                      <p className="font-inter text-[10px] text-text-muted truncate">
+                        {selectedFabric?.label ?? fabric} · {selectedColour?.label ?? colour}
+                        {layers.length > 0 && ` · ${layers.length} el.`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Add New Design — files the current piece into the list below and clears
+                    the canvas for the next one. */}
+                <button onClick={addToCollection}
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 border-2 border-dashed border-rule hover:border-accent-warm/50 bg-white transition-colors duration-200">
+                  <Plus size={14} strokeWidth={1.5} className="text-text-light" />
+                  <span className="font-inter text-[10px] text-espresso">Add New Design</span>
                 </button>
-              }
+
+                {collection.length > 0 && (
+                  <>
+                    <p className="font-inter text-[9px] tracking-nav text-text-light uppercase pt-1">Saved</p>
+                    {collection.map(entry => {
+                      const g = GARMENT_TYPES.find(x => x.id === entry.garment);
+                      const f = FABRICS.find(x => x.id === entry.fabric);
+                      const c = COLOURS.find(x => x.hex.toLowerCase() === entry.colour.toLowerCase());
+                      const thumb = entry.layers.find((l): l is ImageDesignLayer => l.type === 'image');
+                      return (
+                        <div key={entry.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => loadFromCollection(entry)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); loadFromCollection(entry); } }}
+                          title="Load this design"
+                          className="flex items-center gap-3 border border-rule p-2.5 cursor-pointer hover:border-espresso/40 transition-colors"
+                        >
+                          <div className="relative w-11 h-11 border border-rule shrink-0 overflow-hidden" style={{ backgroundColor: entry.colour }}>
+                            {entry.pattern ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={entry.pattern} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                            ) : thumb && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={thumb.url} alt="" className="absolute inset-0 w-full h-full object-contain p-1" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-cinzel text-xs text-espresso truncate">{g?.label ?? entry.garment}</p>
+                            <p className="font-inter text-[10px] text-text-muted truncate">
+                              {f?.label ?? entry.fabric} · {c?.label ?? entry.colour}
+                              {entry.layers.length > 0 && ` · ${entry.layers.length} el.`}
+                            </p>
+                          </div>
+                          <button onClick={(e) => { e.stopPropagation(); removeFromCollection(entry.id); }} aria-label="Remove from collection"
+                            className="text-text-muted hover:text-red-500 transition-colors shrink-0">
+                            <Trash2 size={14} strokeWidth={1.5} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+            </ConfigPanel>
+          )}
+
+          {showEstimate && (
+            <ConfigPanel
+              title="Estimate Price"
+              onClose={() => setShowEstimate(false)}
+              side="right"
+              anchor="top"
+              footer={collection.length > 0 ? (
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-inter text-[8px] tracking-nav text-text-light uppercase truncate">
+                      {estimateEntries.length} design{estimateEntries.length === 1 ? '' : 's'} · {estimateTotalQty} units
+                    </p>
+                    <p className="font-cinzel text-xs text-espresso">Estimated Total</p>
+                  </div>
+                  <span className="font-cinzel text-lg text-accent-warm shrink-0">£{estimateGrandTotal.toFixed(2)}</span>
+                </div>
+              ) : undefined}
             >
               {collection.length === 0 ? (
                 <p className="font-inter text-xs text-text-muted leading-relaxed">
-                  No saved designs yet. Design a garment and tap <Plus size={10} strokeWidth={2} className="inline -mt-0.5" /> to save it here.
+                  No saved designs yet. Save a design to your collection to estimate pricing for it.
                 </p>
               ) : (
                 <div className="space-y-2.5">
                   {collection.map(entry => {
                     const g = GARMENT_TYPES.find(x => x.id === entry.garment);
-                    const f = FABRICS.find(x => x.id === entry.fabric);
                     const c = COLOURS.find(x => x.hex.toLowerCase() === entry.colour.toLowerCase());
-                    const thumb = entry.layers.find((l): l is ImageDesignLayer => l.type === 'image');
+                    const selected = !estimateExcluded.has(entry.id);
+                    const unit = estimateUnitPrice(entry);
                     return (
                       <div key={entry.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => loadFromCollection(entry)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); loadFromCollection(entry); } }}
-                        title="Load this design"
-                        className="flex items-center gap-3 border border-rule p-2.5 cursor-pointer hover:border-espresso/40 transition-colors"
+                        className={`border p-2.5 transition-colors ${
+                          selected ? 'border-espresso bg-espresso/5' : 'border-rule opacity-50 hover:opacity-80'
+                        }`}
                       >
-                        <div className="relative w-11 h-11 border border-rule shrink-0 overflow-hidden" style={{ backgroundColor: entry.colour }}>
-                          {entry.pattern ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={entry.pattern} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                          ) : thumb && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={thumb.url} alt="" className="absolute inset-0 w-full h-full object-contain p-1" />
-                          )}
+                        <div className="flex items-start gap-2.5">
+                          <button onClick={() => toggleEstimateEntry(entry.id)} aria-pressed={selected}
+                            aria-label={selected ? 'Exclude from estimate' : 'Include in estimate'}
+                            className={`mt-0.5 w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${
+                              selected ? 'bg-espresso border-espresso' : 'border-rule'
+                            }`}>
+                            {selected && <Check size={11} strokeWidth={2.5} className="text-cream" />}
+                          </button>
+                          <button onClick={() => toggleEstimateEntry(entry.id)} className="flex-1 min-w-0 text-left">
+                            <p className="font-cinzel text-xs text-espresso truncate">{g?.label ?? entry.garment} · {c?.label ?? entry.colour}</p>
+                            <p className="font-inter text-[10px] text-text-muted truncate">
+                              {entry.layers.length > 0 && `${entry.layers.length} asset${entry.layers.length > 1 ? 's' : ''}`}
+                              {entry.pattern && (entry.layers.length > 0 ? ' · pattern' : 'Pattern')}
+                              {entry.layers.length === 0 && !entry.pattern && 'No custom artwork'}
+                            </p>
+                          </button>
+                          <span className="font-inter text-[11px] text-espresso font-medium shrink-0">
+                            £{unit.toFixed(2)}<span className="text-text-light">/u</span>
+                          </span>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-cinzel text-xs text-espresso truncate">{g?.label ?? entry.garment}</p>
-                          <p className="font-inter text-[10px] text-text-muted truncate">
-                            {f?.label ?? entry.fabric} · {c?.label ?? entry.colour}
-                            {entry.layers.length > 0 && ` · ${entry.layers.length} el.`}
-                          </p>
+
+                        <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-rule-light">
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => updateCollectionQty(entry.id, entry.qty - 10)} aria-label="Decrease quantity"
+                              className="w-5 h-5 border border-rule flex items-center justify-center hover:border-espresso transition-colors">
+                              <Minus size={9} strokeWidth={1.5} />
+                            </button>
+                            <span className="font-inter text-[11px] text-espresso w-9 text-center tabular-nums">{entry.qty}</span>
+                            <button onClick={() => updateCollectionQty(entry.id, entry.qty + 10)} aria-label="Increase quantity"
+                              className="w-5 h-5 border border-rule flex items-center justify-center hover:border-espresso transition-colors">
+                              <Plus size={9} strokeWidth={1.5} />
+                            </button>
+                            <span className="font-inter text-[8px] text-text-light uppercase tracking-nav">units</span>
+                          </div>
+                          <span className="font-inter text-[10px] text-text-muted">
+                            <span className="text-espresso font-medium">£{(unit * entry.qty).toFixed(2)}</span>
+                          </span>
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); removeFromCollection(entry.id); }} aria-label="Remove from collection"
-                          className="text-text-muted hover:text-red-500 transition-colors shrink-0">
-                          <Trash2 size={14} strokeWidth={1.5} />
-                        </button>
                       </div>
                     );
                   })}
@@ -962,7 +1162,7 @@ function StudioPageInner() {
 
               <div className="w-px h-6 bg-cream/15 mx-1 sm:mx-1.5 shrink-0" />
 
-              <button onClick={() => setShowCollection(v => !v)} title="Collection" aria-label="Collection"
+              <button onClick={() => { setShowCollection(v => !v); setShowEstimate(false); }} title="Collection" aria-label="Collection"
                 aria-pressed={showCollection}
                 className={`w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-lg transition-colors duration-150 ${
                   showCollection ? 'bg-accent-warm text-cream' : 'text-cream/70 hover:bg-cream/10 hover:text-cream'

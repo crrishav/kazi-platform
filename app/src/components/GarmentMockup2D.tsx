@@ -58,7 +58,6 @@ export function GarmentMockup2D({
   const maskId = `garment-mask-${uid}`;
   const patternId = `garment-pattern-${uid}`;
   const tileSize = width / 5;
-  const fill = pattern ? `url(#${patternId})` : colour;
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" aria-hidden>
@@ -85,9 +84,17 @@ export function GarmentMockup2D({
         style={{ filter: 'grayscale(1) contrast(1.08) brightness(1.04)' }}
       />
 
-      {/* 2. Colour (or tiled pattern), masked to the garment silhouette and multiplied over
-          the shading so fabric folds still read through a custom print. */}
-      <rect x="0" y="0" width={width} height={height} fill={fill} mask={`url(#${maskId})`} style={{ mixBlendMode: 'multiply', opacity: pattern ? patternOpacity : 1 }} />
+      {/* 2. Colour, masked to the garment silhouette and multiplied over the shading so fabric
+          folds still read through. Always present — a pattern fades in *on top* of this
+          (below) rather than replacing it, so the chosen colour still shows through/tints
+          the print instead of the pattern sitting on a bare, uncoloured mockup. */}
+      <rect x="0" y="0" width={width} height={height} fill={colour} mask={`url(#${maskId})`} style={{ mixBlendMode: 'multiply' }} />
+
+      {/* 2b. Tiled pattern, same mask/blend, faded by patternOpacity so it blends into the
+          colour fill above instead of overriding it outright. */}
+      {pattern && (
+        <rect x="0" y="0" width={width} height={height} fill={`url(#${patternId})`} mask={`url(#${maskId})`} style={{ mixBlendMode: 'multiply', opacity: patternOpacity }} />
+      )}
 
       {/* 3. Highlight sheen on top for a bit of depth. */}
       {/* eslint-disable-next-line react/no-unknown-property */}

@@ -73,7 +73,7 @@ export default function Navigation() {
     >
       <div
         className="flex items-center justify-between h-full relative container-pad"
-        style={{ maxWidth: 1680, margin: "0 auto" }}
+        style={{ maxWidth: 1920, margin: "0 auto" }}
       >
         {/* Left: Nav Links */}
         <div className="hidden md:flex items-center gap-8 md:-ml-6">
