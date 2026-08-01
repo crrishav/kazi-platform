@@ -11,6 +11,7 @@ import {
   type DesignLayer,
   type DesignSide,
   type ImageDesignLayer,
+  type LayerGeometryPatch,
   composeDesignCanvas,
   loadImage,
   clamp,
@@ -80,6 +81,49 @@ function shortestAngleDiff(from: number, to: number): number {
   return diff
 }
 
+/**
+ * DecalGeometry clips triangles purely by whether they fall inside the projection box's
+ * volume — it doesn't care which way a triangle faces. A box deep enough to reach curved
+ * geometry near the collar/hem/sleeves (which dips well inward in z) inevitably also
+ * overlaps the curved shoulder/underarm transition where the surface turns from front- to
+ * side- to back-facing, and even the opposite panel's own surface near the midline. That
+ * geometry gets stamped with this side's texture too, which is what bled through as stray
+ * triangles/slivers on the *other* side. Post-filter by comparing each triangle's normal to
+ * the side's own projection direction — geometry that isn't actually facing this side keeps
+ * getting excluded regardless of how generously the box is sized for reach.
+ */
+function filterDecalGeometryByNormal(geo: THREE.BufferGeometry, direction: THREE.Vector3, minDot: number) {
+  const pos = geo.getAttribute('position')
+  const nrm = geo.getAttribute('normal')
+  const uv = geo.getAttribute('uv')
+  if (!pos || !nrm) return
+
+  const keptPos: number[] = []
+  const keptNrm: number[] = []
+  const keptUv: number[] = []
+  const a = new THREE.Vector3()
+  const b = new THREE.Vector3()
+  const c = new THREE.Vector3()
+
+  for (let i = 0; i < pos.count; i += 3) {
+    a.set(nrm.getX(i), nrm.getY(i), nrm.getZ(i))
+    b.set(nrm.getX(i + 1), nrm.getY(i + 1), nrm.getZ(i + 1))
+    c.set(nrm.getX(i + 2), nrm.getY(i + 2), nrm.getZ(i + 2))
+    const avg = a.add(b).add(c)
+    if (avg.lengthSq() === 0 || avg.normalize().dot(direction) < minDot) continue
+
+    for (let v = 0; v < 3; v++) {
+      keptPos.push(pos.getX(i + v), pos.getY(i + v), pos.getZ(i + v))
+      keptNrm.push(nrm.getX(i + v), nrm.getY(i + v), nrm.getZ(i + v))
+      if (uv) keptUv.push(uv.getX(i + v), uv.getY(i + v))
+    }
+  }
+
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(keptPos, 3))
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(keptNrm, 3))
+  if (uv) geo.setAttribute('uv', new THREE.Float32BufferAttribute(keptUv, 2))
+}
+
 function worldAnchor(anchor: SideAnchor, targetMatrixWorld: THREE.Matrix4): WorldAnchor {
   return {
     position: anchor.localPosition.clone().applyMatrix4(targetMatrixWorld),
@@ -119,11 +163,15 @@ function screenToLocal(bridge: Bridge, side: DesignSide, clientX: number, client
 function GarmentMesh({
   url,
   colour,
+  pattern,
+  patternOpacity,
   layers,
   bridge,
 }: {
   url: string
   colour: string
+  pattern: string | null
+  patternOpacity: number
   layers: DesignLayer[]
   bridge: React.MutableRefObject<Bridge>
 }) {
@@ -139,22 +187,100 @@ function GarmentMesh({
   const swayStartTime = useRef(0)
   const wasInterrupted = useRef(true)
   const shirtWidthRef = useRef(0)
+  const patternTextureRef = useRef<THREE.CanvasTexture | null>(null)
+  const patternCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const patternImageRef = useRef<HTMLImageElement | null>(null)
+  const loadedPatternUrlRef = useRef<string | null>(null)
   const { camera, size, gl } = useThree()
 
+  // Base material: a flat colour tint, or — if the user uploaded a pattern — a texture with
+  // the pattern image composited *over a fill of the chosen colour* at patternOpacity, so the
+  // slider actually fades the print back into plain fabric instead of just tinting it (a pure
+  // material-colour tint is imperceptible against light base colours like the default Oat).
+  // Only ever touches the base body mesh(es) — decal overlay meshes are tagged with
+  // `userData.isDecal` below and skipped, so this can't clobber the uploaded artwork's texture.
   useEffect(() => {
-    const c = new THREE.Color(colour)
-    cloned.traverse((child) => {
-      const mesh = child as THREE.Mesh
-      if (mesh.isMesh && mesh.material) {
-        const mat = (mesh.material as THREE.MeshStandardMaterial).clone()
-        mat.color.set(c)
-        mat.roughness = 0.75
-        mat.metalness = 0.0
-        mat.needsUpdate = true
-        mesh.material = mat
+    let cancelled = false
+
+    function applyMaterial(map: THREE.Texture | null, tint: THREE.Color) {
+      if (cancelled) return
+      cloned.traverse((child) => {
+        const mesh = child as THREE.Mesh
+        if (mesh.isMesh && mesh.material && !mesh.userData.isDecal) {
+          const mat = (mesh.material as THREE.MeshStandardMaterial).clone()
+          mat.map = map
+          mat.color.copy(tint)
+          mat.roughness = 0.75
+          mat.metalness = 0.0
+          mat.needsUpdate = true
+          mesh.material = mat
+        }
+      })
+    }
+
+    if (!pattern) {
+      patternTextureRef.current?.dispose()
+      patternTextureRef.current = null
+      patternCanvasRef.current = null
+      patternImageRef.current = null
+      loadedPatternUrlRef.current = null
+      applyMaterial(null, new THREE.Color(colour))
+      return
+    }
+
+    async function composite() {
+      let img = patternImageRef.current
+      if (!img || loadedPatternUrlRef.current !== pattern) {
+        img = await loadImage(pattern!).catch(() => null)
+        if (cancelled) return
+        patternImageRef.current = img
+        loadedPatternUrlRef.current = pattern
       }
-    })
-  }, [cloned, colour])
+      if (!img) {
+        applyMaterial(null, new THREE.Color(colour))
+        return
+      }
+
+      const size = 512
+      const canvas = patternCanvasRef.current ?? document.createElement('canvas')
+      canvas.width = size
+      canvas.height = size
+      const ctx = canvas.getContext('2d')
+      if (!ctx || cancelled) return
+      ctx.clearRect(0, 0, size, size)
+      ctx.fillStyle = colour
+      ctx.fillRect(0, 0, size, size)
+      ctx.globalAlpha = patternOpacity
+      ctx.drawImage(img, 0, 0, size, size)
+      ctx.globalAlpha = 1
+      patternCanvasRef.current = canvas
+
+      let tex = patternTextureRef.current
+      if (!tex) {
+        tex = new THREE.CanvasTexture(canvas)
+        tex.wrapS = THREE.RepeatWrapping
+        tex.wrapT = THREE.RepeatWrapping
+        tex.repeat.set(4, 4)
+        tex.colorSpace = THREE.SRGBColorSpace
+        patternTextureRef.current = tex
+      } else {
+        tex.needsUpdate = true
+      }
+      applyMaterial(tex, new THREE.Color('#ffffff'))
+    }
+
+    composite()
+    return () => {
+      cancelled = true
+    }
+  }, [cloned, colour, pattern, patternOpacity])
+
+  // Dispose the pattern texture when this mesh instance goes away entirely (e.g. switching
+  // between t-shirt and hoodie, which remounts GarmentMesh via its `key={url}`).
+  useEffect(() => () => {
+    patternTextureRef.current?.dispose()
+    patternTextureRef.current = null
+  }, [])
 
   useEffect(() => {
     bridge.current.camera = camera
@@ -202,7 +328,11 @@ function GarmentMesh({
     // frontmost point. Instead, span each side's box from just outside its
     // own surface to just past the garment's mid-depth line, so it actually
     // reaches the sleeves and the curved collar/hem while stopping short of
-    // the opposite panel.
+    // the opposite panel. (The normal filter below is what actually keeps
+    // this from bleeding onto the wrong geometry — the box alone can't,
+    // since reaching curved geometry that deep in z means overlapping the
+    // curved shoulder/underarm transition and the opposite panel's surface
+    // regardless of how the box itself is shaped.)
     const FRONT_MARGIN = halfDepth * 0.08
     const MID_OVERLAP  = halfDepth * 0.42
     const frontOuterZ = box.max.z + FRONT_MARGIN
@@ -243,6 +373,9 @@ function GarmentMesh({
       }
 
       const geo = new DecalGeometry(resolvedTarget, pos, rot, new THREE.Vector3(areaW, areaH, depth))
+      // `normal` is this side's world-space projection direction — drop any clipped triangle
+      // that isn't actually facing roughly that way before it's reparented into local space.
+      filterDecalGeometryByNormal(geo, normal, 0.35)
       geo.applyMatrix4(invWorld)
 
       // One persistent texture per side, reused for every edit — redraw the canvas and flip
@@ -264,6 +397,10 @@ function GarmentMesh({
       })
       const mesh = new THREE.Mesh(geo, mat)
       mesh.renderOrder = 10
+      // Excludes this overlay from the base-material effect's cloned.traverse — otherwise
+      // any colour/pattern/opacity change would clobber its map with the base material and
+      // wipe out the uploaded artwork.
+      mesh.userData.isDecal = true
       resolvedTarget.add(mesh)
       meshes[side] = mesh
     })
@@ -450,7 +587,7 @@ function LayerHandles({
   activeSide: DesignSide
   selectedLayerId: string | null
   onSelectLayer: (id: string | null) => void
-  onUpdateLayer: (id: string, patch: Partial<Pick<DesignLayer, 'x' | 'y' | 'width' | 'height'>>) => void
+  onUpdateLayer: (id: string, patch: LayerGeometryPatch) => void
   onDeleteLayer: (id: string) => void
   onLayerContextMenu?: (id: string, clientX: number, clientY: number) => void
 }) {
@@ -574,7 +711,7 @@ function LayerHandles({
     const onMove = (ev: PointerEvent) => {
       const cur = screenToLocal(bridge.current, side, ev.clientX, ev.clientY)
       if (!cur) return
-      const patch: Partial<Pick<DesignLayer, 'x' | 'y' | 'width' | 'height'>> = {}
+      const patch: LayerGeometryPatch = {}
       if (fixedX !== null) {
         const left = Math.min(fixedX, cur.x)
         const right = Math.max(fixedX, cur.x)
@@ -706,6 +843,8 @@ export default function GarmentViewer({
   onLayerContextMenu,
   onFacingSideChange,
   rotateRequest,
+  pattern = null,
+  patternOpacity = 1,
 }: {
   garment: string
   colour: string
@@ -713,13 +852,17 @@ export default function GarmentViewer({
   activeSide?: DesignSide
   selectedLayerId?: string | null
   onSelectLayer?: (id: string | null) => void
-  onUpdateLayer?: (id: string, patch: Partial<Pick<DesignLayer, 'x' | 'y' | 'width' | 'height'>>) => void
+  onUpdateLayer?: (id: string, patch: LayerGeometryPatch) => void
   onDeleteLayer?: (id: string) => void
   onLayerContextMenu?: (id: string, clientX: number, clientY: number) => void
   /** Called whenever the side actually facing the camera changes (rotation-driven, not a click handler). */
   onFacingSideChange?: (side: DesignSide) => void
   /** Set a new object (new `nonce`) to smoothly spin the garment so `side` faces the camera. */
   rotateRequest?: RotateRequest | null
+  /** URL of an uploaded all-over pattern image; tiled across the garment in place of the flat colour. */
+  pattern?: string | null
+  /** 0..1 strength of the tiled pattern over the fabric; only meaningful when `pattern` is set. */
+  patternOpacity?: number
 }) {
   const url = garmentUrl(garment)
   const bridge = useRef<Bridge>(createBridge())
@@ -774,7 +917,7 @@ export default function GarmentViewer({
         <directionalLight position={[4, 6, 4]} intensity={1.6} color="#FFFAF4" castShadow />
         <directionalLight position={[-3, 3, -2]} intensity={0.5} color="#F0EBE3" />
         <directionalLight position={[0, -2, 2]} intensity={0.2} color="#E8E4DC" />
-        <GarmentMesh key={url} url={url} colour={colour} layers={layers} bridge={bridge} />
+        <GarmentMesh key={url} url={url} colour={colour} pattern={pattern} patternOpacity={patternOpacity} layers={layers} bridge={bridge} />
         <ContactShadows position={[0, -0.55, 0]} opacity={0.18} blur={3} far={1} color="#1B3D2A" />
         <OrbitControls
           enablePan={false}

@@ -6,13 +6,13 @@ import dynamic from 'next/dynamic';
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  Upload, ArrowRight, RotateCw, Minus, Plus, ChevronDown, ChevronUp, X, Type,
-  Shirt, Layers, Palette, ImagePlus, PoundSterling, BookmarkPlus, Trash2,
+  Upload, ArrowRight, RotateCw, Plus, ChevronDown, ChevronUp, X, Type,
+  Shirt, Layers, Palette, ImagePlus, BookmarkPlus, Trash2,
   MoreVertical, Copy, BringToFront, SendToBack,
 } from 'lucide-react';
 import {
-  type DesignLayer, type DesignSide, type ImageDesignLayer, type TextDesignLayer,
-  createImageLayer, createTextLayer, TEXT_FONTS, clamp,
+  type DesignLayer, type DesignSide, type ImageDesignLayer, type TextDesignLayer, type LayerGeometryPatch,
+  createImageLayer, createTextLayer, TEXT_FONTS, clamp, MIN_LAYER_OPACITY,
 } from '@/lib/design-layers';
 import type { RotateRequest } from '@/components/GarmentViewer';
 import Garment2DEditor from '@/components/Garment2DEditor';
@@ -58,9 +58,7 @@ const COLOURS = [
   { hex: '#C4956A', label: 'Camel' },
 ] as const;
 
-const VOLUME_TIERS: [number, number][] = [[50, 10.20], [100, 7.80], [200, 6.00], [500, 4.50], [1000, 3.20]];
-
-type PanelId = 'garment' | 'fabric' | 'colour' | 'design' | 'quantity';
+type PanelId = 'garment' | 'fabric' | 'colour' | 'design';
 type LayerOrderAction = 'front' | 'forward' | 'backward' | 'back';
 
 interface ContextMenuState {
@@ -74,6 +72,8 @@ interface SavedDesign {
   garment: string;
   fabric: string;
   colour: string;
+  pattern: string | null;
+  patternOpacity: number;
   qty: number;
   layers: DesignLayer[];
 }
@@ -83,7 +83,6 @@ const DOCK_ITEMS: { id: PanelId; label: string; icon: typeof Shirt }[] = [
   { id: 'fabric',   label: 'Fabric',   icon: Layers },
   { id: 'colour',   label: 'Colour',   icon: Palette },
   { id: 'design',   label: 'Design',   icon: ImagePlus },
-  { id: 'quantity', label: 'Quantity & Pricing', icon: PoundSterling },
 ];
 
 function pricePerUnit(qty: number): number {
@@ -110,6 +109,16 @@ async function cloneImageLayerUrl(layer: DesignLayer): Promise<DesignLayer> {
     return { ...layer, url: URL.createObjectURL(blob) };
   } catch {
     return layer;
+  }
+}
+
+async function cloneObjectUrl(url: string | null): Promise<string | null> {
+  if (!url) return null;
+  try {
+    const blob = await (await fetch(url)).blob();
+    return URL.createObjectURL(blob);
+  } catch {
+    return url;
   }
 }
 
@@ -187,11 +196,12 @@ function StudioPageInner() {
   const [garment, setGarment]     = useState<string>('t-shirt');
   const [fabric, setFabric]       = useState<string>('cotton-180');
   const [colour, setColour]       = useState<string>('#E8E0D0');
+  const [pattern, setPattern]     = useState<string | null>(null);
+  const [patternOpacity, setPatternOpacity] = useState<number>(1);
   const [layers, setLayers]       = useState<DesignLayer[]>([]);
   const [activeSide, setActiveSide] = useState<DesignSide>('front');
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [qty, setQty]             = useState<number>(100);
-  const [showBreakdown, setShowBreakdown] = useState(false);
   const [collection, setCollection] = useState<SavedDesign[]>([]);
   const [showCollection, setShowCollection] = useState(false);
   const [rotateRequest, setRotateRequest] = useState<RotateRequest | null>(null);
@@ -271,7 +281,7 @@ function StudioPageInner() {
     setSelectedLayerId(id);
   }
 
-  function updateLayer(id: string, patch: Partial<Pick<DesignLayer, 'x' | 'y' | 'width' | 'height'>>) {
+  function updateLayer(id: string, patch: LayerGeometryPatch) {
     setLayers(prev => prev.map(l => (l.id === id ? { ...l, ...patch } : l)));
   }
 
@@ -338,6 +348,52 @@ function StudioPageInner() {
     });
   }
 
+  // Keyboard shortcuts for the selected layer: Delete/Backspace to remove, Escape to back out
+  // of whatever's open (context menu, then selection, then panel), Cmd/Ctrl+D to duplicate,
+  // Cmd/Ctrl+[ / ] to reorder, and arrow keys to nudge position (Shift for a bigger step).
+  // Ignored while a text field has focus so it doesn't hijack normal typing/editing.
+  useEffect(() => {
+    function isEditableTarget(target: EventTarget | null): boolean {
+      if (!(target instanceof HTMLElement)) return false;
+      return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+    }
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (isEditableTarget(e.target)) return;
+
+      if (e.key === 'Escape') {
+        if (contextMenu) { setContextMenu(null); return; }
+        if (selectedLayerId) { setSelectedLayerId(null); return; }
+        if (activePanel) setActivePanel(null);
+        return;
+      }
+
+      if (!selectedLayerId) return;
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        deleteLayer(selectedLayerId);
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        duplicateLayer(selectedLayerId);
+      } else if ((e.metaKey || e.ctrlKey) && (e.key === ']' || e.key === '[')) {
+        e.preventDefault();
+        reorderLayer(selectedLayerId, e.key === ']' ? 'forward' : 'backward');
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const step = e.shiftKey ? 0.02 : 0.005;
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+        setLayers(prev => prev.map(l => (
+          l.id === selectedLayerId ? { ...l, x: clamp(l.x + dx, 0, 1), y: clamp(l.y + dy, 0, 1) } : l
+        )));
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedLayerId, activePanel, contextMenu]);
+
   function openLayerContextMenu(id: string, clientX: number, clientY: number) {
     const MENU_W = 176;
     const MENU_H = 232;
@@ -373,21 +429,89 @@ function StudioPageInner() {
     setSelectedLayerId(layer.id);
   }
 
+  function handlePatternInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPattern(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+  }
+
+  function removePattern() {
+    setPattern(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }
+
+  // Clears the working design back to a fresh default — used after saving to the collection,
+  // so "save" reads as "file this away and start the next one" rather than just a bookmark.
+  function startNewDesign() {
+    setLayers(prev => {
+      prev.forEach(l => { if (l.type === 'image') URL.revokeObjectURL(l.url); });
+      return [];
+    });
+    setPattern(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setPatternOpacity(1);
+    setGarment('t-shirt');
+    setFabric('cotton-180');
+    setColour('#E8E0D0');
+    setQty(100);
+    setSelectedLayerId(null);
+    setActiveSide('front');
+  }
+
   async function addToCollection() {
-    // Mint independent object URLs for the snapshot — the live layers' URLs get revoked
-    // on delete/replace, which would otherwise break this saved entry's thumbnail.
-    const snapshot = await Promise.all(layers.map(cloneImageLayerUrl));
+    // Mint independent object URLs for the snapshot — the live layers' (and pattern's) URLs
+    // get revoked once startNewDesign clears the working design, which would otherwise break
+    // this saved entry's thumbnail/fill.
+    const [snapshotLayers, snapshotPattern] = await Promise.all([
+      Promise.all(layers.map(cloneImageLayerUrl)),
+      cloneObjectUrl(pattern),
+    ]);
     setCollection(prev => [
-      { id: crypto.randomUUID(), garment, fabric, colour, qty, layers: snapshot },
+      { id: crypto.randomUUID(), garment, fabric, colour, pattern: snapshotPattern, patternOpacity, qty, layers: snapshotLayers },
       ...prev,
     ]);
     setShowCollection(true);
+    startNewDesign();
+  }
+
+  // Swaps the working design for a saved one — clones fresh object URLs (and layer ids) so
+  // editing/deleting here can't revoke the URLs the collection entry itself still depends on.
+  async function loadFromCollection(entry: SavedDesign) {
+    const [workingLayers, workingPattern] = await Promise.all([
+      Promise.all(entry.layers.map(async (l) => ({ ...(await cloneImageLayerUrl(l)), id: crypto.randomUUID() }))),
+      cloneObjectUrl(entry.pattern),
+    ]);
+    setLayers(prev => {
+      prev.forEach(l => { if (l.type === 'image') URL.revokeObjectURL(l.url); });
+      return workingLayers;
+    });
+    setPattern(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return workingPattern;
+    });
+    setPatternOpacity(entry.patternOpacity);
+    setGarment(entry.garment);
+    setFabric(entry.fabric);
+    setColour(entry.colour);
+    setQty(entry.qty);
+    setSelectedLayerId(null);
+    setActiveSide('front');
+    setShowCollection(false);
   }
 
   function removeFromCollection(id: string) {
     setCollection(prev => {
       const target = prev.find(entry => entry.id === id);
       target?.layers.forEach(l => { if (l.type === 'image') URL.revokeObjectURL(l.url); });
+      if (target?.pattern) URL.revokeObjectURL(target.pattern);
       return prev.filter(entry => entry.id !== id);
     });
   }
@@ -428,6 +552,8 @@ function StudioPageInner() {
               <Garment2DEditor
                 garment={garment}
                 colour={colour}
+                pattern={pattern}
+                patternOpacity={patternOpacity}
                 layers={layers}
                 activeSide={activeSide}
                 selectedLayerId={selectedLayerId}
@@ -440,6 +566,8 @@ function StudioPageInner() {
               <GarmentViewer
                 garment={garment}
                 colour={colour}
+                pattern={pattern}
+                patternOpacity={patternOpacity}
                 layers={layers}
                 activeSide={activeSide}
                 selectedLayerId={selectedLayerId}
@@ -476,6 +604,32 @@ function StudioPageInner() {
             <span className="font-inter text-[9px] text-text-light uppercase whitespace-nowrap">
               /unit<span className="hidden sm:inline"> · {qty} units</span>
             </span>
+          </div>
+
+          {/* Front/Back — a single sliding switch, right edge. Centered vertically by default;
+              a panel opening (Fabric, etc.) can grow nearly full-width on mobile and would
+              otherwise sit right under it, so it steps up out of the way while one is open. */}
+          <div
+            className={`absolute right-4 sm:right-6 z-10 transition-[top] duration-200 ease-out ${
+              activePanel || showCollection ? 'top-16 sm:top-20' : 'top-1/2 -translate-y-1/2'
+            }`}
+          >
+            <div className="relative flex p-1 w-[5.75rem] sm:w-[6.5rem] bg-white/90 backdrop-blur-sm border border-rule rounded-full shadow-xl" role="group" aria-label="Front or back">
+              <span
+                aria-hidden
+                className="absolute left-1 top-1 bottom-1 w-[calc(50%-0.25rem)] rounded-full bg-accent-warm transition-transform duration-200 ease-out"
+                style={{ transform: activeSide === 'back' ? 'translateX(100%)' : 'translateX(0%)' }}
+              />
+              {(['front', 'back'] as const).map(side => (
+                <button key={side} onClick={() => requestRotateToSide(side)} title={`Show ${side}`}
+                  aria-pressed={activeSide === side}
+                  className={`relative z-10 flex-1 h-8 sm:h-9 flex items-center justify-center rounded-full font-inter text-[9px] tracking-nav uppercase transition-colors duration-150 ${
+                    activeSide === side ? 'text-cream' : 'text-text-muted hover:text-espresso'
+                  }`}>
+                  {side}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Rotate hint */}
@@ -546,7 +700,7 @@ function StudioPageInner() {
               </div>
 
               <p className="font-inter text-[9px] tracking-nav text-text-light uppercase mb-2.5">Quick picks</p>
-              <div className="grid grid-cols-6 gap-2">
+              <div className="grid grid-cols-6 gap-2 mb-5">
                 {COLOURS.map(c => (
                   <button key={c.hex} onClick={() => setColour(c.hex)} title={c.label}
                     className={`w-8 h-8 border-2 transition-all duration-200 ${
@@ -555,23 +709,52 @@ function StudioPageInner() {
                     style={{ backgroundColor: c.hex }} />
                 ))}
               </div>
+
+              <div className="flex items-center justify-between mb-2.5">
+                <p className="font-inter text-[9px] tracking-nav text-text-light uppercase">Custom pattern</p>
+                {pattern && (
+                  <button onClick={removePattern} className="font-inter text-[9px] tracking-nav text-text-muted hover:text-red-500 uppercase transition-colors">
+                    Remove
+                  </button>
+                )}
+              </div>
+              {pattern ? (
+                <div className="border border-rule p-2.5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 border border-rule shrink-0 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={pattern} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <p className="font-inter text-[10px] text-text-muted leading-relaxed">
+                      Tiled across the whole garment, under any images or text.
+                    </p>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-rule-light">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-inter text-[9px] tracking-nav text-text-light uppercase">Pattern opacity</span>
+                      <span className="font-inter text-[10px] text-espresso">{Math.round(patternOpacity * 100)}%</span>
+                    </div>
+                    <input
+                      type="range" min={0.1} max={1} step={0.01}
+                      value={patternOpacity}
+                      onChange={e => setPatternOpacity(Number(e.target.value))}
+                      className="w-full h-0.5 bg-rule appearance-none cursor-pointer"
+                      style={{ accentColor: '#1B3D2A' }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <label className="relative flex items-center justify-center gap-1.5 py-3.5 border-2 border-dashed border-rule hover:border-accent-warm/50 bg-white cursor-pointer transition-all duration-200">
+                  <input type="file" accept=".png,.jpg,.jpeg,.webp" onChange={handlePatternInput} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                  <Upload className="w-4 h-4 text-text-light" strokeWidth={1.5} />
+                  <span className="font-inter text-[10px] text-espresso">Upload a pattern</span>
+                </label>
+              )}
             </ConfigPanel>
           )}
 
           {activePanel === 'design' && (
             <ConfigPanel title="Design" onClose={() => setActivePanel(null)}>
-              <div className="flex border border-rule mb-4 overflow-hidden rounded-md">
-                {(['front', 'back'] as const).map(side => (
-                  <button key={side} onClick={() => requestRotateToSide(side)} title={`Rotate to ${side}`}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 font-inter text-[10px] tracking-nav uppercase transition-colors ${
-                      activeSide === side ? 'bg-espresso text-cream' : 'bg-white text-text-muted hover:text-espresso'
-                    }`}>
-                    {activeSide !== side && <RotateCw size={10} strokeWidth={1.5} />}
-                    {side}
-                  </button>
-                ))}
-              </div>
-
               <div className="grid grid-cols-2 gap-2.5 mb-4">
                 <label className="relative flex flex-col items-center justify-center gap-1.5 py-4 border-2 border-dashed border-rule hover:border-accent-warm/50 bg-white cursor-pointer transition-all duration-200">
                   <input type="file" accept=".png,.jpg,.jpeg,.svg,.webp" onChange={handleImageInput} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
@@ -591,7 +774,9 @@ function StudioPageInner() {
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {sideLayers.map(layer => (
+                  {/* Stacking order is array order (later = on top) — show the list in the
+                      same visual order the layers actually render, top-most first. */}
+                  {[...sideLayers].reverse().map(layer => (
                     <div key={layer.id}>
                       <button onClick={() => selectLayer(layer.id)}
                         className={`flex items-center gap-2.5 w-full text-left p-2 border transition-colors ${
@@ -619,113 +804,58 @@ function StudioPageInner() {
                         </span>
                       </button>
 
-                      {selectedLayerId === layer.id && layer.type === 'text' && (
+                      {selectedLayerId === layer.id && (
                         <div className="mt-2 mb-1 p-2.5 border border-rule-light space-y-2.5">
-                          <input
-                            type="text"
-                            value={layer.text}
-                            onChange={e => updateTextLayer(layer.id, { text: e.target.value })}
-                            placeholder="Your text"
-                            className="w-full border border-rule px-2.5 py-1.5 font-inter text-xs text-espresso focus:outline-none focus:border-espresso"
-                          />
-                          <div className="flex items-center gap-2">
-                            {TEXT_FONTS.map(f => (
-                              <button key={f.value} onClick={() => updateTextLayer(layer.id, { fontFamily: f.value })}
-                                style={{ fontFamily: f.value }}
-                                className={`px-2 py-1 border text-xs transition-colors ${
-                                  layer.fontFamily === f.value ? 'border-espresso bg-espresso text-cream' : 'border-rule text-espresso hover:border-espresso/40'
-                                }`}>
-                                {f.label}
-                              </button>
-                            ))}
-                          </div>
-                          <div className="flex items-center gap-2.5">
+                          {layer.type === 'text' && (
+                            <>
+                              <input
+                                type="text"
+                                value={layer.text}
+                                onChange={e => updateTextLayer(layer.id, { text: e.target.value })}
+                                placeholder="Your text"
+                                className="w-full border border-rule px-2.5 py-1.5 font-inter text-xs text-espresso focus:outline-none focus:border-espresso"
+                              />
+                              <div className="flex items-center gap-2">
+                                {TEXT_FONTS.map(f => (
+                                  <button key={f.value} onClick={() => updateTextLayer(layer.id, { fontFamily: f.value })}
+                                    style={{ fontFamily: f.value }}
+                                    className={`px-2 py-1 border text-xs transition-colors ${
+                                      layer.fontFamily === f.value ? 'border-espresso bg-espresso text-cream' : 'border-rule text-espresso hover:border-espresso/40'
+                                    }`}>
+                                    {f.label}
+                                  </button>
+                                ))}
+                              </div>
+                              <div className="flex items-center gap-2.5">
+                                <input
+                                  type="color"
+                                  value={layer.color}
+                                  onChange={e => updateTextLayer(layer.id, { color: e.target.value })}
+                                  aria-label="Text colour"
+                                  className="w-8 h-8 border border-rule cursor-pointer bg-white p-0.5"
+                                />
+                                <span className="font-inter text-[10px] text-text-light uppercase">{layer.color}</span>
+                              </div>
+                            </>
+                          )}
+
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="font-inter text-[9px] tracking-nav text-text-light uppercase">Opacity</span>
+                              <span className="font-inter text-[10px] text-espresso">{Math.round(layer.opacity * 100)}%</span>
+                            </div>
                             <input
-                              type="color"
-                              value={layer.color}
-                              onChange={e => updateTextLayer(layer.id, { color: e.target.value })}
-                              aria-label="Text colour"
-                              className="w-8 h-8 border border-rule cursor-pointer bg-white p-0.5"
+                              type="range" min={MIN_LAYER_OPACITY} max={1} step={0.01}
+                              value={layer.opacity}
+                              onChange={e => updateLayer(layer.id, { opacity: Number(e.target.value) })}
+                              className="w-full h-0.5 bg-rule appearance-none cursor-pointer"
+                              style={{ accentColor: '#1B3D2A' }}
                             />
-                            <span className="font-inter text-[10px] text-text-light uppercase">{layer.color}</span>
                           </div>
                         </div>
                       )}
                     </div>
                   ))}
-                </div>
-              )}
-            </ConfigPanel>
-          )}
-
-          {activePanel === 'quantity' && (
-            <ConfigPanel title="Quantity & Pricing" onClose={() => setActivePanel(null)}>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setQty(q => Math.max(50, q - 10))} aria-label="Decrease quantity"
-                    className="w-6 h-6 border border-rule flex items-center justify-center hover:border-espresso transition-colors">
-                    <Minus size={11} strokeWidth={1.5} />
-                  </button>
-                  <div className="text-center w-14">
-                    <p className="font-cinzel text-xl text-espresso leading-none">{qty}</p>
-                    <p className="font-inter text-[8px] text-text-light uppercase tracking-nav">units</p>
-                  </div>
-                  <button onClick={() => setQty(q => Math.min(1000, q + 10))} aria-label="Increase quantity"
-                    className="w-6 h-6 border border-rule flex items-center justify-center hover:border-espresso transition-colors">
-                    <Plus size={11} strokeWidth={1.5} />
-                  </button>
-                </div>
-                <div className="text-right">
-                  <p className="font-cinzel text-xl text-accent-warm leading-none">£{ppu.toFixed(2)}</p>
-                  <p className="font-inter text-[8px] text-text-light uppercase tracking-nav">per unit</p>
-                </div>
-              </div>
-
-              <input
-                type="range" min={50} max={1000} step={10}
-                value={qty} onChange={e => setQty(Number(e.target.value))}
-                className="w-full h-0.5 bg-rule appearance-none cursor-pointer mb-5"
-                style={{ accentColor: '#1B3D2A' }}
-              />
-
-              <button onClick={() => setShowBreakdown(v => !v)}
-                className="flex items-center justify-between w-full font-inter text-[10px] tracking-nav text-text-muted hover:text-espresso uppercase transition-colors mb-3 pb-3 border-b border-rule-light">
-                Full breakdown {showBreakdown ? <ChevronUp size={12} strokeWidth={1.5} /> : <ChevronDown size={12} strokeWidth={1.5} />}
-              </button>
-
-              {showBreakdown && (
-                <div className="mb-5">
-                  {[
-                    [`${qty} × £${ppu.toFixed(2)} per unit`, `£${totalGBP}`],
-                    ['UK Import Duty', '£0.00 — DFQF'],
-                    ['Est. shipping (air freight)', 'TBC on quote'],
-                  ].map(([label, val]) => (
-                    <div key={label} className="flex items-center justify-between py-2 border-b border-rule-light last:border-0">
-                      <span className="font-inter text-[11px] text-text-muted">{label}</span>
-                      <span className="font-inter text-[11px] text-espresso font-medium">{val}</span>
-                    </div>
-                  ))}
-                  <div className="flex items-center justify-between px-3 py-2.5 mt-2 bg-espresso">
-                    <span className="font-cinzel text-xs text-cream">Estimated Total</span>
-                    <span className="font-cinzel text-sm text-accent-warm">£{totalGBP}</span>
-                  </div>
-
-                  <p className="font-inter text-[9px] tracking-nav text-text-light uppercase mt-4 mb-2">Volume tiers</p>
-                  <div className="grid grid-cols-5 gap-px bg-rule">
-                    {VOLUME_TIERS.map(([units, price]) => (
-                      <div key={units} className={`p-1.5 text-center ${qty >= units ? 'bg-espresso' : 'bg-white'}`}>
-                        <p className={`font-inter text-[7px] uppercase mb-0.5 ${qty >= units ? 'text-cream/50' : 'text-text-light'}`}>{units}+</p>
-                        <p className={`font-cinzel text-[10px] ${qty >= units ? 'text-accent-warm' : 'text-text-muted'}`}>£{price.toFixed(2)}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {!showBreakdown && (
-                <div className="flex items-center justify-between px-3 py-2.5 bg-espresso mb-1">
-                  <span className="font-cinzel text-xs text-cream">Estimated Total</span>
-                  <span className="font-cinzel text-sm text-accent-warm">£{totalGBP}</span>
                 </div>
               )}
             </ConfigPanel>
@@ -755,9 +885,19 @@ function StudioPageInner() {
                     const c = COLOURS.find(x => x.hex.toLowerCase() === entry.colour.toLowerCase());
                     const thumb = entry.layers.find((l): l is ImageDesignLayer => l.type === 'image');
                     return (
-                      <div key={entry.id} className="flex items-center gap-3 border border-rule p-2.5">
+                      <div key={entry.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => loadFromCollection(entry)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); loadFromCollection(entry); } }}
+                        title="Load this design"
+                        className="flex items-center gap-3 border border-rule p-2.5 cursor-pointer hover:border-espresso/40 transition-colors"
+                      >
                         <div className="relative w-11 h-11 border border-rule shrink-0 overflow-hidden" style={{ backgroundColor: entry.colour }}>
-                          {thumb && (
+                          {entry.pattern ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={entry.pattern} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                          ) : thumb && (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={thumb.url} alt="" className="absolute inset-0 w-full h-full object-contain p-1" />
                           )}
@@ -765,11 +905,11 @@ function StudioPageInner() {
                         <div className="flex-1 min-w-0">
                           <p className="font-cinzel text-xs text-espresso truncate">{g?.label ?? entry.garment}</p>
                           <p className="font-inter text-[10px] text-text-muted truncate">
-                            {f?.label ?? entry.fabric} · {c?.label ?? entry.colour} · {entry.qty}u
+                            {f?.label ?? entry.fabric} · {c?.label ?? entry.colour}
                             {entry.layers.length > 0 && ` · ${entry.layers.length} el.`}
                           </p>
                         </div>
-                        <button onClick={() => removeFromCollection(entry.id)} aria-label="Remove from collection"
+                        <button onClick={(e) => { e.stopPropagation(); removeFromCollection(entry.id); }} aria-label="Remove from collection"
                           className="text-text-muted hover:text-red-500 transition-colors shrink-0">
                           <Trash2 size={14} strokeWidth={1.5} />
                         </button>
@@ -822,7 +962,7 @@ function StudioPageInner() {
 
               <div className="w-px h-6 bg-cream/15 mx-1 sm:mx-1.5 shrink-0" />
 
-              <button onClick={addToCollection} title="Add to collection" aria-label="Add to collection"
+              <button onClick={() => setShowCollection(v => !v)} title="Collection" aria-label="Collection"
                 aria-pressed={showCollection}
                 className={`w-9 h-9 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center rounded-lg transition-colors duration-150 ${
                   showCollection ? 'bg-accent-warm text-cream' : 'text-cream/70 hover:bg-cream/10 hover:text-cream'

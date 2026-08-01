@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { X } from 'lucide-react';
 import {
-  type DesignLayer, type DesignSide, type TextDesignLayer,
+  type DesignLayer, type DesignSide, type TextDesignLayer, type LayerGeometryPatch,
   clamp, MIN_LAYER_SIZE, RESIZE_HANDLES,
 } from '@/lib/design-layers';
 import { GarmentMockup2D, getDesignArea, getImageMeta } from './GarmentMockup2D';
@@ -54,16 +54,18 @@ function AutoFitText({ layer }: { layer: TextDesignLayer }) {
 }
 
 export default function Garment2DEditor({
-  garment, colour, layers, activeSide, selectedLayerId,
+  garment, colour, pattern = null, patternOpacity = 1, layers, activeSide, selectedLayerId,
   onSelectLayer, onUpdateLayer, onDeleteLayer, onLayerContextMenu,
 }: {
   garment: string;
   colour: string;
+  pattern?: string | null;
+  patternOpacity?: number;
   layers: DesignLayer[];
   activeSide: DesignSide;
   selectedLayerId: string | null;
   onSelectLayer: (id: string | null) => void;
-  onUpdateLayer: (id: string, patch: Partial<Pick<DesignLayer, 'x' | 'y' | 'width' | 'height'>>) => void;
+  onUpdateLayer: (id: string, patch: LayerGeometryPatch) => void;
   onDeleteLayer: (id: string) => void;
   onLayerContextMenu?: (id: string, clientX: number, clientY: number) => void;
 }) {
@@ -142,7 +144,7 @@ export default function Garment2DEditor({
       if (!r) return;
       const cx = clamp((ev.clientX - r.left) / r.width, 0, 1);
       const cy = clamp((ev.clientY - r.top) / r.height, 0, 1);
-      const patch: Partial<Pick<DesignLayer, 'x' | 'y' | 'width' | 'height'>> = {};
+      const patch: LayerGeometryPatch = {};
       if (fixedX !== null) {
         const left = Math.min(fixedX, cx);
         const right = Math.max(fixedX, cx);
@@ -186,7 +188,7 @@ export default function Garment2DEditor({
       <div className="relative" style={{ width: stageSize.width || undefined, height: stageSize.height || undefined }}>
         {stageSize.width > 0 && (
           <>
-            <GarmentMockup2D garment={garment} side={activeSide} colour={colour} />
+            <GarmentMockup2D garment={garment} side={activeSide} colour={colour} pattern={pattern} patternOpacity={patternOpacity} />
 
             {/* Artwork layer — clipped to the garment's own silhouette (via its alpha), so
                 anything dragged or resized past the fabric edge is cut off instead of
@@ -212,7 +214,7 @@ export default function Garment2DEditor({
                   <div
                     key={layer.id}
                     className="absolute touch-none select-none"
-                    style={{ ...layerBoxStyle(layer), cursor: 'move' }}
+                    style={{ ...layerBoxStyle(layer), cursor: 'move', opacity: layer.opacity }}
                     onPointerDown={(e) => beginMove(e, layer)}
                     onContextMenu={(e) => {
                       e.preventDefault();

@@ -43,15 +43,22 @@ export function getDesignArea(garment: string, side: DesignSide) {
 }
 
 export function GarmentMockup2D({
-  garment, side, colour,
+  garment, side, colour, pattern = null, patternOpacity = 1,
 }: {
   garment: string;
   side: DesignSide;
   colour: string;
+  /** URL of an uploaded all-over pattern image; tiled in place of the flat colour fill. */
+  pattern?: string | null;
+  /** 0..1 strength of the tiled pattern over the fabric; only meaningful when `pattern` is set. */
+  patternOpacity?: number;
 }) {
   const uid = useId();
   const { src, width, height } = getImageMeta(garment, side);
   const maskId = `garment-mask-${uid}`;
+  const patternId = `garment-pattern-${uid}`;
+  const tileSize = width / 5;
+  const fill = pattern ? `url(#${patternId})` : colour;
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" aria-hidden>
@@ -61,6 +68,13 @@ export function GarmentMockup2D({
           {/* eslint-disable-next-line react/no-unknown-property */}
           <image href={src} xlinkHref={src} x="0" y="0" width={width} height={height} preserveAspectRatio="none" />
         </mask>
+
+        {pattern && (
+          <pattern id={patternId} patternUnits="userSpaceOnUse" width={tileSize} height={tileSize}>
+            {/* eslint-disable-next-line react/no-unknown-property */}
+            <image href={pattern} xlinkHref={pattern} width={tileSize} height={tileSize} preserveAspectRatio="xMidYMid slice" />
+          </pattern>
+        )}
       </defs>
 
       {/* 1. Neutral grayscale base — clean start regardless of the source photo's cast. */}
@@ -71,8 +85,9 @@ export function GarmentMockup2D({
         style={{ filter: 'grayscale(1) contrast(1.08) brightness(1.04)' }}
       />
 
-      {/* 2. Colour, masked to the garment silhouette and multiplied over the shading. */}
-      <rect x="0" y="0" width={width} height={height} fill={colour} mask={`url(#${maskId})`} style={{ mixBlendMode: 'multiply' }} />
+      {/* 2. Colour (or tiled pattern), masked to the garment silhouette and multiplied over
+          the shading so fabric folds still read through a custom print. */}
+      <rect x="0" y="0" width={width} height={height} fill={fill} mask={`url(#${maskId})`} style={{ mixBlendMode: 'multiply', opacity: pattern ? patternOpacity : 1 }} />
 
       {/* 3. Highlight sheen on top for a bit of depth. */}
       {/* eslint-disable-next-line react/no-unknown-property */}

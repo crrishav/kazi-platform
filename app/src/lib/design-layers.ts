@@ -12,6 +12,8 @@ interface DesignLayerBase {
   /** Size, normalized 0..1 as a fraction of the design canvas width/height. */
   width: number;
   height: number;
+  /** 0..1 opacity applied on top of the layer's own content. */
+  opacity: number;
 }
 
 export interface ImageDesignLayer extends DesignLayerBase {
@@ -28,6 +30,11 @@ export interface TextDesignLayer extends DesignLayerBase {
 }
 
 export type DesignLayer = ImageDesignLayer | TextDesignLayer;
+
+/** The subset of a layer's fields editable via drag/resize/opacity controls. */
+export type LayerGeometryPatch = Partial<Pick<DesignLayer, 'x' | 'y' | 'width' | 'height' | 'opacity'>>;
+
+export const MIN_LAYER_OPACITY = 0.1;
 
 export const TEXT_FONTS = [
   { label: 'Inter', value: "'Inter', sans-serif" },
@@ -69,6 +76,7 @@ export function createImageLayer(side: DesignSide, url: string, fileName: string
     y: 0.5,
     width,
     height: clamp(width / safeAspect, MIN_LAYER_SIZE, 0.9),
+    opacity: 1,
     url,
     fileName,
   };
@@ -83,6 +91,7 @@ export function createTextLayer(side: DesignSide): TextDesignLayer {
     y: 0.5,
     width: 0.55,
     height: 0.14,
+    opacity: 1,
     text: 'Your text',
     color: '#1A1A1A',
     fontFamily: TEXT_FONTS[0].value,
@@ -125,12 +134,16 @@ export function composeDesignCanvas(
     if (layer.type === 'image') {
       const img = imageCache.get(layer.url);
       if (img && img.complete && img.naturalWidth > 0) {
+        ctx.save();
+        ctx.globalAlpha = layer.opacity;
         ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+        ctx.restore();
       }
       continue;
     }
 
     ctx.save();
+    ctx.globalAlpha = layer.opacity;
     ctx.fillStyle = layer.color;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
