@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  Upload, ArrowRight, RotateCw, Plus, Minus, ChevronDown, ChevronUp, X, Type,
+  Upload, ArrowRight, RotateCw, Plus, ChevronDown, ChevronUp, X, Type,
   Shirt, Layers, Palette, ImagePlus, BookmarkPlus, Trash2, Calculator, Check,
   MoreVertical, Copy, BringToFront, SendToBack,
 } from 'lucide-react';
@@ -16,6 +16,8 @@ import {
 } from '@/lib/design-layers';
 import type { RotateRequest } from '@/components/GarmentViewer';
 import Garment2DEditor from '@/components/Garment2DEditor';
+import QtyStepper from '@/components/QtyStepper';
+import { saveQuoteDesigns, type QuoteDesign } from '@/lib/quote-handoff';
 
 const MODELS_READY = true;
 
@@ -590,8 +592,6 @@ function StudioPageInner() {
   const selectedColour    = COLOURS.find(c => c.hex.toLowerCase() === colour.toLowerCase());
   const selectedFabric    = FABRICS.find(f => f.id === fabric);
   const selectedGarment   = GARMENT_TYPES.find(g => g.id === garment);
-  const ppu      = pricePerUnit(qty);
-  const totalGBP = (ppu * qty).toFixed(2);
   const sideLayers = layers.filter(l => l.side === activeSide);
   const currentThumb = layers.find((l): l is ImageDesignLayer => l.type === 'image');
 
@@ -599,18 +599,35 @@ function StudioPageInner() {
   const estimateTotalQty  = estimateEntries.reduce((sum, entry) => sum + entry.qty, 0);
   const estimateGrandTotal = estimateEntries.reduce((sum, entry) => sum + estimateUnitPrice(entry) * entry.qty, 0);
 
-  const frontCount = layers.filter(l => l.side === 'front').length;
-  const backCount  = layers.filter(l => l.side === 'back').length;
-  const designSummary = layers.length === 0
-    ? 'No custom artwork'
-    : `${frontCount} front element(s), ${backCount} back element(s)`;
+  // Snapshots the current in-progress design plus everything saved in the collection into the
+  // quote page's format (resolved labels, not raw ids, so the quote page never needs to know
+  // about GARMENT_TYPES/FABRICS/COLOURS) and hands it off via sessionStorage — a URL query
+  // string can't carry the blob-URL thumbnails, and there can now be many designs, not one.
+  function buildQuoteDesigns(): QuoteDesign[] {
+    const toQuoteDesign = (
+      id: string, g: string, f: string, c: string, pat: string | null, dqty: number, dlayers: DesignLayer[],
+    ): QuoteDesign => ({
+      id,
+      garmentLabel: GARMENT_TYPES.find(x => x.id === g)?.label ?? g,
+      fabricLabel: FABRICS.find(x => x.id === f)?.label ?? f,
+      colourLabel: COLOURS.find(x => x.hex.toLowerCase() === c.toLowerCase())?.label ?? c,
+      colourHex: c,
+      hasPattern: !!pat,
+      patternThumb: pat,
+      assetThumb: dlayers.find((l): l is ImageDesignLayer => l.type === 'image')?.url ?? null,
+      layerCount: dlayers.length,
+      qty: dqty,
+    });
 
-  const qtyRange = qty >= 1000 ? '1,000+' : qty >= 500 ? '500–999' : qty >= 250 ? '250–499' : qty >= 100 ? '100–249' : '50–99';
-  const quoteHref = `/quote?${new URLSearchParams({
-    productType: garment === 'hoodie' ? 'Hoodies' : 'T-Shirts',
-    qtyRange,
-    details: `Custom configuration: ${selectedGarment?.label ?? garment}, Fabric: ${selectedFabric?.label ?? fabric} (${selectedFabric?.spec ?? ''}), Colour: ${selectedColour?.label ?? colour}, Design: ${designSummary}, Qty: ${qty} units, Est. total: £${totalGBP}`,
-  }).toString()}`;
+    return [
+      toQuoteDesign('current', garment, fabric, colour, pattern, qty, layers),
+      ...collection.map(entry => toQuoteDesign(entry.id, entry.garment, entry.fabric, entry.colour, entry.pattern, entry.qty, entry.layers)),
+    ];
+  }
+
+  function handleQuoteClick() {
+    saveQuoteDesigns(buildQuoteDesigns());
+  }
 
   return (
     <main
@@ -1098,15 +1115,7 @@ function StudioPageInner() {
 
                         <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-rule-light">
                           <div className="flex items-center gap-1.5">
-                            <button onClick={() => updateCollectionQty(entry.id, entry.qty - 10)} aria-label="Decrease quantity"
-                              className="w-5 h-5 border border-rule flex items-center justify-center hover:border-espresso transition-colors">
-                              <Minus size={9} strokeWidth={1.5} />
-                            </button>
-                            <span className="font-inter text-[11px] text-espresso w-9 text-center tabular-nums">{entry.qty}</span>
-                            <button onClick={() => updateCollectionQty(entry.id, entry.qty + 10)} aria-label="Increase quantity"
-                              className="w-5 h-5 border border-rule flex items-center justify-center hover:border-espresso transition-colors">
-                              <Plus size={9} strokeWidth={1.5} />
-                            </button>
+                            <QtyStepper value={entry.qty} onChange={(next) => updateCollectionQty(entry.id, next)} />
                             <span className="font-inter text-[8px] text-text-light uppercase tracking-nav">units</span>
                           </div>
                           <span className="font-inter text-[10px] text-text-muted">
@@ -1172,7 +1181,7 @@ function StudioPageInner() {
 
               <div className="w-px h-6 bg-cream/15 mx-1 sm:mx-1.5 shrink-0" />
 
-              <Link href={quoteHref} title="Request a Quote"
+              <Link href="/quote" onClick={handleQuoteClick} title="Request a Quote"
                 className="flex items-center gap-1.5 h-9 sm:h-10 pl-3.5 pr-3 sm:pl-4 sm:pr-3.5 rounded-lg bg-accent-warm text-cream font-inter text-[11px] tracking-nav uppercase hover:bg-accent-warm/90 transition-colors duration-150 whitespace-nowrap shrink-0">
                 Quote <ArrowRight size={13} strokeWidth={1.5} />
               </Link>
